@@ -1004,7 +1004,7 @@ uint64   size             ← LE，该条目的载荷字节数
 | 同上 | 逐块统计用 `atoi(t.name.c_str() + 5)` 从名字中解析 block 号 | **同上反证** |
 | `DlssNrEngine.h` | `NUM_BLOCKS = 71` / `MAX_LAYERS_PER_BLOCK = 4` / `MAX_WINDOW_SIZE = 256` | **71 与实测的 71 个 block 一致**；**`MAX_LAYERS_PER_BLOCK = 4` 被实测推翻**（见 §5.6） |
 | `IntelEngine.cpp` | `struct WeightBlobHeader { uint32_t magic; … }` | **与实测格式冲突**（见 §5.2） |
-| `FINAL_STATUS.md` | 「权重格式: DLSSNRW1, FP16, 153 个 tensor」 | **153 与实测一致**；「FP16」为**文档级声明** |
+| 本项目自身的状态说明 | 「权重格式: DLSSNRW1, FP16, 153 个 tensor」 | **153 与实测一致**；「FP16」为**文档级声明** |
 
 **一致性裁定**：两份解析器**与实测格式一致**（逐字段对上）；`IntelEngine.cpp` 的 `WeightBlobHeader` / `TensorDesc` **与实测格式不一致** ⇒ 该文件的 magic 检查**在实测文件上返回 false**，`loadWeights()` 会走 `return false` 分支。**本文不作因果判断**，仅登记该**可复现的一致性差异**。
 

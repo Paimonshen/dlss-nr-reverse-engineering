@@ -1004,7 +1004,7 @@ uint64   size             ← LE, payload byte count of that entry
 | as above | per-block statistics use `atoi(t.name.c_str() + 5)` to parse the block number from the name | **the same reductio as above** |
 | `DlssNrEngine.h` | `NUM_BLOCKS = 71` / `MAX_LAYERS_PER_BLOCK = 4` / `MAX_WINDOW_SIZE = 256` | **71 is consistent with the measured 71 blocks**; **`MAX_LAYERS_PER_BLOCK = 4` is overturned by the measurement** (see §5.6) |
 | `IntelEngine.cpp` | `struct WeightBlobHeader { uint32_t magic; … }` | **conflicts with the measured format** (see §5.2) |
-| `FINAL_STATUS.md` | "weight format: DLSSNRW1, FP16, 153 tensors" | **153 is consistent with the measurement**; "FP16" is a **documentation-level declaration** |
+| the project's own status note | "weight format: DLSSNRW1, FP16, 153 tensors" | **153 is consistent with the measurement**; "FP16" is a **documentation-level declaration** |
 
 **Consistency ruling**: the two parsers **are consistent with the measured format** (matching field by field); the `WeightBlobHeader` / `TensorDesc` of `IntelEngine.cpp` **are inconsistent with the measured format** ⇒ that file's magic check **returns false on the measured file**, and `loadWeights()` takes the `return false` branch. **This document makes no causal judgement**, only registering this **reproducible consistency difference**.
 
