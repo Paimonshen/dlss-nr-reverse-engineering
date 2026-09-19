@@ -1,0 +1,45 @@
+---
+name: "Gap 2 — Parameter struct internal layouts"
+about: "You have the field layout of `VarParams` (168 B) and/or `SwinParams` (40 B), or the toolchain rules that determine it."
+title: "[Gap 2] "
+labels: ["gap-2-struct-layout", "help wanted"]
+---
+
+## What this gap is
+
+Two user-parameter structs have unresolved **internal field composition**:
+
+| Struct | Kernel(s) | `by_value` size (from DLL metadata) |
+|---|---|---|
+| `VarParams` | `k_swin_var<...>` (5 kernels: k29–k33) | **168 bytes** |
+| `SwinParams` | `k_swin_1h_32_fp8` (k0) | **40 bytes** |
+
+The DLL metadata declares only the **total byte count** of the `by_value` parameter — it carries **no field names and no field boundaries**.
+
+**What we already ruled out**: a re-implementation source tree contains same-named structs; counted with 64-bit pointers they come to **92 bytes**, which matches **neither** 168 nor 40. So the source structs **cannot** be used as the DLL-side layout.
+
+## What we need from you
+
+- [ ] **Upstream struct definitions** for `VarParams` and/or `SwinParams` (source, header, or decompiled form)
+- [ ] **AMD toolchain layout rules** for `by_value` struct parameters — including implicit padding/alignment rules that would explain 168 and 40
+- [ ] **Other evidence** that pins the field boundaries (e.g. reader-side code that indexes into the struct)
+
+## Please provide
+
+| Field | Your answer |
+|---|---|
+| Which struct | `VarParams` / `SwinParams` / both |
+| Field list (name, type, offset, size) | |
+| Source of this layout | |
+| If from source: file + line range | |
+| If derived: your derivation steps | |
+
+## Sanity checks we will run
+
+Your layout should be consistent with:
+
+- total = **168** (or **40**) bytes,
+- `kernarg_segment_size` = `by_value` + `66` + `190` for the 31 standard-shape kernels (and the identity breaks for the 3 exception kernels),
+- `kernarg_segment_align = 8`.
+
+Please state explicitly if your layout matches the totals only **approximately**, or only under a specific pointer size.

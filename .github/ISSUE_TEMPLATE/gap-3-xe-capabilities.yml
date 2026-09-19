@@ -1,0 +1,40 @@
+---
+name: "Gap 3 — Intel Xe / XMX capability confirmation"
+about: "You can confirm (or refute) specific items on the external-documentation checklist — XMX primitives, precision modes, split-K reduction ordering, Swin window/shift primitives, or the generic SPIR-V path."
+title: "[Gap 3] "
+labels: ["gap-3-xe-capabilities", "help wanted"]
+---
+
+## What this gap is
+
+The operator-mapping table has 34 rows, and **both the "XMX direct support" and "recommended path" columns are marked "needs external documentation" for 34/34 rows** — deliberately, because the author had **no Intel toolchain and no Xe hardware**, so no capability conclusion could be verified.
+
+> Those blanks are **intentional, not omissions**. This project does **not** speculate about hardware capabilities.
+
+## The checklist
+
+The full 51-item list is in [`docs/05-Intel可行性评估.md`](../../docs/05-Intel可行性评估.md), chapter 9. Highest-priority items:
+
+1. **G-01** — Does Intel XMX provide directly callable primitives for matrix multiply / convolution, and what precision modes (FP8 / FP16 / BF16 / INT8) are covered?
+2. **G-02** — Is there an Xe-side primitive replacing split-K convolution semantics, and is the floating-point accumulation order of split-K reductions constrained by spec (this affects numerical reproducibility)?
+3. **G-03** — Does Xe provide window/shift primitives needed by Swin attention, and what is the feasible range of the `swin_var` window parameter (32/64/128/256)?
+4. **G-04** — Feasibility and performance boundary of the generic (non-XMX) SPIR-V path for this workload.
+
+## What we need from you
+
+Please answer **one or more specific items by number**, and for each give:
+
+| Field | Your answer |
+|---|---|
+| Item number (e.g. `G-06`) | |
+| Your finding | |
+| **Source** (spec name + section/version, or vendor doc, or your own measurement) | |
+| Confidence / conditions | |
+
+Relevant references: Intel Arc GPU architecture manual, Intel GPU programming guide, oneAPI Level Zero spec, SYCL 2020 spec, SPIR-V spec, oneDNN/oneMKL docs, OpenVINO docs.
+
+## Rules for this repo
+
+- **A claim without a source will be marked as unverified** — please cite the spec chapter/version, or describe the measurement you performed.
+- Do **not** post speculation, vendor marketing language, or "should be fine" style answers. If you are unsure, say so; that is a useful data point.
+- If you can **refute** something in our docs, that is equally welcome — cite the evidence.

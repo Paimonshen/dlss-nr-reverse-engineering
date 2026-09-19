@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Legal / takedown request
+    url: https://github.com/Paimonshen/dlss-nr-reverse-engineering/blob/main/LEGAL.md
+    about: Rights holders requesting removal — see LEGAL.md §6; we comply immediately.
+  - name: How to contribute (evidence rules)
+    url: https://github.com/Paimonshen/dlss-nr-reverse-engineering/blob/main/CONTRIBUTING.md
+    about: Please read the evidence requirements before opening a technical issue.

@@ -62,6 +62,8 @@ A complete static analysis of the AMD-side `dlssnr_amd_pass1.dll` (a `version.dl
 | **Analysis tools** | Three general-purpose read-only tools: PE parser, AMDGPU msgpack metadata extractor, byte scanner | `tools/` |
 | **Collaboration methodology** | Multi-agent workflow, quality gates and acceptance chain, **24 rules derived from real incidents** | `team-methodology/` |
 
+> **Documents are available in both English and Chinese.** See the [document index](docs/README.md). The **Chinese originals are the analysis of record** (written directly against byte evidence); the English files are faithful translations.
+
 ### Hard conclusions (including our own corrections)
 
 We **kept the correction trail**, including reversals of our own earlier conclusions:
@@ -93,12 +95,14 @@ We **kept the correction trail**, including reversals of our own earlier conclus
 ├── .gitattributes             Git LFS configuration
 ├── .gitignore
 ├── docs/
-│   ├── 01-项目背景.md            Project goal, analysis target, three environment constraints
-│   ├── 02-分析方法论.md          Method chain and analysis discipline
-│   ├── 03-DLL结构分析.md         Module shape, device code, the two pointer tables, registration
-│   ├── 04-内核参数规格.md        Full parameter and resource tables for all 34 kernels
-│   ├── 05-Intel可行性评估.md     Classification / resources / operators / host replacement / weights / roadmap / checklist
-│   └── 06-未解缺口与限制.md      Honest limits: what we could not produce, and why
+│   ├── README.md                 Document index (both languages)
+│   ├── 01-Project-Background.md    Project goal, analysis target, three environment constraints
+│   ├── 02-Analysis-Methodology.md  Method chain and analysis discipline
+│   ├── 03-DLL-Structure-Analysis.md Module shape, device code, the two pointer tables, registration
+│   ├── 04-Kernel-Parameter-Spec.md Full parameter and resource tables for all 34 kernels
+│   ├── 05-Intel-Feasibility-Assessment.md Classification / resources / operators / host replacement / weights / roadmap / checklist
+│   ├── 06-Open-Gaps-and-Limits.md  Honest limits: what could not be produced, and why
+│   └── 0N-*.md                     Chinese originals of the above (analysis of record)
 ├── tools/
 │   ├── pe_parser.py         PE32/PE32+ parsing (manual .reloc, .pdata)
 │   ├── msgpack_extract.py   AMDGPU kernel metadata extraction
@@ -109,6 +113,8 @@ We **kept the correction trail**, including reversals of our own earlier conclus
 │   ├── 02-质量门禁与验收链.md
 │   ├── 03-已确立的定规.md     24 rules, each from a real mistake
 │   └── 04-禁用措辞检查的校准.md
+├── .github/ISSUE_TEMPLATE/    Issue forms for the three gaps + corrections
+├── SECURITY.md                Security policy
 └── binaries/                 Third-party binaries (Git LFS)
     ├── dlssnr_amd_pass1.dll
     ├── dlssnr_amd_pass2.dll
@@ -120,7 +126,7 @@ We **kept the correction trail**, including reversals of our own earlier conclus
 
 > Note: the three `pass1/2/3` DLLs are **byte-identical** (same SHA256). That is the real structure of the release package, not three processing stages.
 
-> **Note on documentation language**: the six analysis documents under `docs/` and the four methodology documents under `team-methodology/` are currently written in **Chinese**. English translations are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+> **Note on documentation language**: the six analysis documents under `docs/` and the four methodology documents under `team-methodology/` are currently written in **Chinese**.
 
 ---
 

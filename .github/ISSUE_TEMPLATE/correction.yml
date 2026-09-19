@@ -1,0 +1,37 @@
+---
+name: "Correction / evidence-based fix"
+about: "A documented conclusion disagrees with the byte evidence, or you have better evidence for a claim in the docs."
+title: "[Correction] "
+labels: ["correction"]
+---
+
+## What to correct
+
+| Field | Your answer |
+|---|---|
+| Document & section (or file & line) | |
+| Current claim | |
+| What the evidence shows instead | |
+
+## Evidence (required)
+
+This project requires reproducible evidence. Please give **at least one**:
+
+- [ ] **Binary**: file + offset + raw bytes (+ the tool/command you used)
+- [ ] **Source**: file + line range + quoted text
+- [ ] **Data file**: file + offset + parser output
+- [ ] **Specification**: doc name + section/version + quote
+
+```
+# paste your reproduction command(s) and their output here
+```
+
+## Scope check (optional but helpful)
+
+- [ ] This changes only a **conclusion**, not the underlying measurements
+- [ ] This changes the **measurements** themselves (please show the raw bytes)
+- [ ] This affects items **cited by other documents** (list them, so the propagation check can be done)
+
+> If your correction supersedes an existing conclusion, we will record it as
+> "original claim → your evidence → corrected statement" and keep the trail,
+> rather than silently replacing the text.

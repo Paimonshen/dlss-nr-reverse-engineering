@@ -1,0 +1,47 @@
+---
+name: "Gap 1 — `71 block → kernel` binding"
+about: "You have the layer→kernel dispatch mapping, or a way to obtain it (upstream source, network definition, or a runtime dump)."
+title: "[Gap 1] "
+labels: ["gap-1-dispatch-binding", "help wanted"]
+---
+
+## What this gap is
+
+The study established the topology, the per-block **layer counts**, and the set of **34 kernel names** — but **not** which layer dispatches to which kernel.
+
+Four avenues are closed in the original author's environment:
+1. DLL static analysis is at its boundary (the dispatch body has no intersection with the kernel-launch functions).
+2. The in-workspace source is a stub (`return true;`) and **non-isomorphic** to the DLL (only 2 of 34 kernel names overlap).
+3. The weight file is exhausted (140 byte patterns over the whole file including payload; no `shape`/`dtype`/operator/`block`-index/`kernel`-name fields; index-region unattributed bytes = 0; no second table).
+4. Runtime observation is unavailable (no AMD hardware).
+
+## What we need from you
+
+Please tell us **which of these you have**, and attach/provide it:
+
+- [ ] **Upstream network definition** — `.onnx` / `.safetensors` / export script / training config
+- [ ] **Upstream pass-side source** — the code that builds and dispatches the network
+- [ ] **A runtime dump of the actual dispatch sequence** (from a run on AMD hardware) — e.g. the ordered list of (block, layer, kernel) triples
+- [ ] **Other** (describe)
+
+## Please provide
+
+| Field | Your answer |
+|---|---|
+| Source / origin of the material | |
+| Which module/version it corresponds to | |
+| How we can verify it corresponds to `dlssnr_amd_pass1.dll` (e.g. kernel names, layer counts, container magic) | |
+
+## Evidence requirement
+
+This project requires **reproducible evidence**. For a mapping claim, please give at least one of:
+
+- a file + line range (for source), or
+- a byte offset + raw bytes (for binary), or
+- the command you ran and its output (for a dump).
+
+> A correct claim with insufficient evidence will be asked to add evidence — it will **not** be rejected outright.
+
+## Why this matters
+
+This is the **single blocking gap** for the porting roadmap: without the binding, the "71-row dispatch table" milestone cannot be completed on evidence.
