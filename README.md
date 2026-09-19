@@ -83,7 +83,9 @@ We built a 34-kernel × operator mapping table, but **the table's "XMX direct su
 
 A complete static analysis of the AMD-side `dlssnr_amd_pass1.dll` (a `version.dll` proxy module containing HIP `amdgcn` device code), to answer:
 
-> **Can DLSS NR be recompiled/ported from AMD HIP to Intel Arc (Xe / XMX)?**
+> **Can DLSS NR be recompiled/ported from AMD HIP to Intel GPUs with XMX engines (Xe-HPG / Xe2 and later)?**
+
+The target is **the XMX-equipped Intel family**, not a single card. **Intel Arc B580 (Xe2 / Battlemage) is the development and verification machine** — the one part available here, so the one that can actually be compiled against and tested. Where a capability varies by generation, the **portable baseline is the set supported by every target generation**; anything beyond it is an **optional path behind runtime detection**. See [`docs/07`](docs/07-External-Evidence-Xe-Capabilities.md) for the sourced generational data.
 
 ### Main results (all reproducible)
 

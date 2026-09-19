@@ -1,6 +1,8 @@
 # Intel Feasibility Assessment
 
-**Assessment target**: recompiling DLSS NR from AMD HIP (the `amdgcn-amdgpu` ecosystem) to Intel Arc B580 (Xe / XMX).
+**Assessment target**: recompiling DLSS NR from AMD HIP (the `amdgcn-amdgpu` ecosystem) to **Intel GPUs that have XMX engines** — the Xe-HPG generation (**Arc A-series**, Alchemist) **and** the Xe2 generation (**Arc B-series**, Battlemage), and later generations that carry XMX.
+
+**Development and verification machine**: **Intel Arc B580** (Xe2 / Battlemage). It is the one part physically available, so it is what can be measured, compiled against and tested. **Its capabilities must not be generalised to the family.** Wherever this document states a hardware capability that varies by generation, the **portable baseline is the set supported by *every* target generation**; anything beyond that is an **optional fast path behind runtime detection**, not an assumption. See [`07-External-Evidence-Xe-Capabilities.md`](07-External-Evidence-Xe-Capabilities.md), which records the sourced generational data.
 
 **Assessment discipline**: for any **specific capability** involving Intel Xe / SPIR-V / XMX, the item is always marked "needs external documentation" with the direction to look into, and **no conclusion is given**. For any judgement of the runtime, instruction, or compile class, the item is always marked as requiring external conditions.
 

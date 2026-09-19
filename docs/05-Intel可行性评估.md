@@ -1,6 +1,8 @@
 # Intel 可行性评估
 
-**评估对象**：把 DLSS NR 从 AMD HIP（`amdgcn-amdgpu` 体系）重编到 Intel Arc B580（Xe / XMX）。
+**评估对象**：把 DLSS NR 从 AMD HIP（`amdgcn-amdgpu` 体系）重编到**所有带 XMX 引擎的 Intel 显卡** —— 既包括 Xe-HPG 代（**Arc A 系列**，Alchemist），也包括 Xe2 代（**Arc B 系列**，Battlemage），以及后续带 XMX 的代次。
+
+**开发与验证机**：**Intel Arc B580**（Xe2 / Battlemage）。它是目前唯一物理可用的部件，因此是能够实测、编译与验证的那一块。**不得把它的能力推广到整个家族。** 凡本文档给出的、随代际变化的硬件能力，**可移植基线一律取"所有目标代际共同支持"的集合**；超出该集合的部分只能作为**运行期探测之后的可选快速路径**，不得作为假设。代际数据来源见 [`07-External-Evidence-Xe-Capabilities.md`](07-External-Evidence-Xe-Capabilities.md)。
 
 **评估纪律**：凡涉及 Intel Xe / SPIR-V / XMX 的**具体能力**，一律标注「需外部资料」并给出待查方向，**不给结论**。凡属运行期、指令级、编译级的判断，一律标注为需外部条件。
 
