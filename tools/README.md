@@ -110,6 +110,53 @@ python tools/byte_scanner.py <file> --hex "FF 25" --out out/hits.txt
 
 ---
 
+## 4. `link_audit.py` — Markdown link / anchor / pattern auditor
+
+A general-purpose **read-only** documentation checker. It answers four questions:
+
+1. Do all in-page anchors (`](#heading)`) resolve, using **GitHub's heading-slug rules**?
+2. Do all relative file links point at files that exist?
+3. Do any configured **leak patterns** appear (internal paths, internal file names, scratch names, …)?
+4. Do any configured **banned phrasing** patterns appear, with optional per-file exemptions?
+
+```bash
+# audit a tree (default: current directory)
+python tools/link_audit.py .
+
+# per-file detail
+python tools/link_audit.py . --verbose
+
+# machine-readable
+python tools/link_audit.py . --json
+
+# add your own patterns and exempt a file that legitimately defines them
+python tools/link_audit.py . --leak '_internal' --banned 'we should probably' \
+    --exempt docs/glossary.md
+
+# also scan inside fenced code blocks (default: skipped)
+python tools/link_audit.py . --scan-code-blocks
+```
+
+**Exit codes**: `0` clean, `1` findings reported, `2` bad invocation. Useful in CI:
+
+```yaml
+- run: python tools/link_audit.py . --exempt team-methodology/04-禁用措辞检查的校准.md
+```
+
+### Why a tool instead of review
+
+Anchor slugs and relative-depth links are **conventions**: one mistake gets copied into every translation and every sibling page. Machine re-derivation against the target platform's real rules catches that class of error, which manual review reliably misses.
+
+### Design notes
+
+- **Slug rules**: drops the `#` markers, removes emoji/symbol runs (they leave **no** hyphen), removes punctuation, lowercases, collapses whitespace to `-`. This matters: a leading `-` (e.g. `#-title`) is a **broken** anchor.
+- **BOM tolerance**: a UTF-8 BOM is stripped before parsing, so the first heading of a file is not silently missed.
+- **Code fences are skipped** by default, so sample paths and commands do not create noise. Use `--scan-code-blocks` to include them.
+- **Leak patterns are caller-supplied** and replace the built-in defaults when given — so a project can tune them to its own notion of "internal". Note that naive substrings can **false-positive** (e.g. `_work` inside a field name like `max_flat_workgroup_size`); always confirm a hit's context before "fixing" it.
+- **Nothing is ever written.** The tool only reads.
+
+---
+
 ## 示例：用三个工具复现本项目的主要结论
 
 以下示例使用仓库 `binaries/` 下的文件（需先 `git lfs pull`）。
