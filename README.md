@@ -1,105 +1,115 @@
-# DLSS NR 逆向工程研究：AMD 模块 → Intel Arc (Xe/XMX) 可行性
+# DLSS NR Reverse Engineering: AMD Module → Intel Arc (Xe/XMX) Feasibility
 
-> **一句话**：对 AMD 侧的 DLSS NR 模块做了一次彻底的静态逆向工程，产出完整的内核参数规格与移植可行性评估，并且**诚实地标出了自己走不通的地方** —— 现在需要社区帮我们把最后几个缺口补上。
+> **In one line**: A thorough static reverse-engineering study of the AMD-side DLSS NR module, producing a complete kernel-parameter specification and a porting feasibility assessment — **and honestly marking where we got stuck**. We now need the community's help to close the last few gaps.
 
----
+**Languages / 语言 / 言語 / 언어 / Idioma / Langue:**
+[**English**](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
-## 🙏 求助社区：我们卡在三个具体的地方
-
-这个项目**不是"已完成"的研究**。我们尽可能把能静态确定的东西都确定了（**34 个内核名、内核参数布局、权重容器格式、194 条导入面**都已闭合），但有**三个缺口**在原作者可用的条件下**无法闭合**，我们在这里明确求助：
-
-### 求助 1：`71 block → kernel` 的绑定关系（**最关键**）
-
-**我们要什么**：哪一层（`blockN.layerM`）调用 34 个内核中的哪一个。
-
-**为什么我们拿不到**（四条路全部封死，每条都有证据）：
-1. **DLL 静态分析已到边界** —— 调度函数体内与内核启动函数无交集；
-2. **工作区源码是空壳** —— 有一份再实现工程，但调度函数体只有 `return true;`，且它与该 DLL **不同构**（34 个内核名中只有 2 个重合）；
-3. **权重文件已穷尽** —— 我们用 **140 个字节模式**、覆盖**含载荷区的全文件**做了穷尽检索：`shape` / `dtype` / 算子类型 / `block` 索引 / `kernel` 名**全部 0 命中**，且索引区**逐字节归属：未归属 = 0**（无第二张表、无隐藏元数据区）；
-4. **运行期观测不可用** —— 我们没有 AMD 硬件。
-
-**如果你能提供**：① 上游网络定义文件（`.onnx` / `.safetensors` / 导出脚本）；② 上游 pass 侧源码；③ 或者你在 AMD 硬件上跑一次并 dump 出实际分派序列 —— 请开 Issue，这**直接决定移植路线能否落地**。
-
-### 求助 2：两个参数结构体的内部字段布局
-
-**`VarParams`（168 字节，5 个 `k_swin_var` 内核的用户参数结构）** 与 **`SwinParams`（40 字节，`k_swin_1h_32_fp8`）** 的内部字段构成未解。
-
-**已知**：DLL 元数据只声明 `by_value` 的**总字节数**（168 / 40），**不含字段名与字段边界**。我们读过一份再实现源码里的同名结构体（按 64 位指针计 **92 字节**），但它与 DLL 侧 **168 / 40 都对不上** —— 说明源码结构体**不能**当作 DLL 侧布局使用。
-
-**如果你能提供**：上游源码里的结构体定义、或 AMD 编译链的 `by_value` 结构体布局规则（含隐式填充）—— 请开 Issue。
-
-### 求助 3：Intel Xe / XMX 侧的能力确认（**51 条待查清单**）
-
-我们做了 34 内核 × 算子映射表，但**整张表的「XMX 是否直接支持」与「建议路径」两列，34/34 全部标注为「需查外部资料」—— 我们刻意没有给任何能力结论**，因为我们没有 Intel 工具链、也没有 Xe 硬件，无从验证。
-
-**如果你熟悉 Intel Arc / oneAPI / Level Zero / SPIR-V**，请帮我们确认清单里的具体条目（重点是最优先的 4 条：XMX 对矩阵乘/卷积的原语支持与精度模式、分 K 卷积的归约顺序是否被规范约束、Swin 窗口/移位类原语、以及通用 SPIR-V 路径的可行边界）。清单见 [`docs/05-Intel可行性评估.md`](docs/05-Intel可行性评估.md) 第 9 章。
-
-> **本项目的方法论要求**：凡无把握的一律标「需查外部资料」，**不得凭空推断**。所以表里那些空白是**故意的**，不是遗漏。
+> Translations are community-maintained. If a translation lags behind, **English is authoritative**. Corrections welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-## 这个项目做了什么
+## 🙏 Help Wanted: Three Specific Gaps We Could Not Close
 
-对 AMD 侧分发的 `dlssnr_amd_pass1.dll`（一个 `version.dll` 代理模块，内含 HIP `amdgcn` 设备代码）做了完整的静态分析，目标是回答：
+This is **not a "finished" study**. We pinned down everything that can be determined statically — **all 34 kernel names, the kernel parameter layouts, the weight container format, and the 194-entry import surface are closed** — but **three gaps** remain impossible to close under the original author's available conditions. We are asking for help explicitly.
 
-> **能否把 DLSS NR 从 AMD HIP 重编/移植到 Intel Arc（Xe / XMX）上运行？**
+### Gap 1: The `71 block → kernel` binding (**most critical**)
 
-### 主要成果（全部可复现）
+**What we need**: which layer (`blockN.layerM`) dispatches to which of the 34 kernels.
 
-| 成果 | 内容 | 文档 |
+**Why we cannot get it** (all four avenues are closed, each with evidence):
+1. **DLL static analysis is at its boundary** — the dispatch function's body has no intersection with the kernel-launch functions.
+2. **The in-workspace source is a stub** — a re-implementation project exists, but its dispatch function bodies are just `return true;`, and it is **non-isomorphic** to this DLL (only 2 of the 34 kernel names overlap).
+3. **The weight file is exhausted** — we searched with **140 byte patterns** over the **entire file including the payload**: `shape` / `dtype` / operator type / `block` index / `kernel` name all returned **0 hits**, and the index region's byte accounting shows **unattributed bytes = 0** (no second table, no hidden metadata region).
+4. **Runtime observation is unavailable** — we have no AMD hardware.
+
+**If you can provide**: ① the upstream network definition (`.onnx` / `.safetensors` / export script); ② the upstream pass-side source; ③ or a dump of the actual dispatch sequence from a run on AMD hardware — please open an Issue. **This directly determines whether the porting roadmap can land.**
+
+### Gap 2: Internal field layouts of two parameter structs
+
+**`VarParams` (168 bytes, the user-parameter struct for the 5 `k_swin_var` kernels)** and **`SwinParams` (40 bytes, `k_swin_1h_32_fp8`)** have unresolved internal field composition.
+
+**What we know**: the DLL metadata declares only the **total byte count** of the `by_value` parameter (168 / 40); it carries **no field names and no field boundaries**. We read same-named structs in a re-implementation source tree (92 bytes assuming 64-bit pointers), but those **match neither 168 nor 40** — so the source structs **cannot** be used as the DLL-side layout.
+
+**If you can provide**: the struct definitions from the upstream source, or the `by_value` struct layout rules of the AMD toolchain (including implicit padding) — please open an Issue.
+
+### Gap 3: Confirming Intel Xe / XMX capabilities (a **51-item checklist**)
+
+We built a 34-kernel × operator mapping table, but **the table's "XMX direct support" and "recommended path" columns are marked "needs external documentation" for 34/34 rows — we deliberately gave no capability conclusion**, because we have neither an Intel toolchain nor Xe hardware to verify.
+
+**If you are familiar with Intel Arc / oneAPI / Level Zero / SPIR-V**, please help confirm the specific items (highest priority: XMX primitive support and precision modes for matrix multiply/convolution; whether split-K reduction ordering is constrained by spec; Swin window/shift primitives; and the feasibility boundary of the generic SPIR-V path). The checklist is in [docs/05-Intel可行性评估.md](docs/05-Intel可行性评估.md), chapter 9.
+
+> **Project methodology**: anything we are not certain about is marked "needs external documentation" and **we never speculate**. Those blanks in the table are **deliberate, not omissions**.
+
+---
+
+## What This Project Did
+
+A complete static analysis of the AMD-side `dlssnr_amd_pass1.dll` (a `version.dll` proxy module containing HIP `amdgcn` device code), to answer:
+
+> **Can DLSS NR be recompiled/ported from AMD HIP to Intel Arc (Xe / XMX)?**
+
+### Main results (all reproducible)
+
+| Result | Content | Doc |
 |---|---|---|
-| **模块形态** | 12 个节；17 个导出**全是 `version.dll` API 名**（各为 16 字节 `FF 25` 跳转桩）；导入面 **194 条 / 10 个 DLL**，其中 `amdhip64_7.dll` **29 条**为 HIP API | `docs/03` |
-| **设备代码** | `.hip_fat` 为 clang offload bundle，**9 个 bundle = 1 host 占位 + 8 个 device 目标**，全部 `amdgcn-amd-amdhsa`；每目标 **34 个内核** | `docs/03` |
-| **内核参数规格** | 34 个内核的 `kernarg_segment_size`、`by_value` 大小、完整 `.args` 表、资源字段；**3 个例外内核**（`k_flag_wait`=16 / `k_align_probe`=8 / `k_flag_set`=12） | `docs/04` |
-| **34/34 注册配对** | 两张 **8 字节步长**函数指针表 + **34 处注册调用与表槽位配对 34/34** ⇒ 「内核名 ↔ 包装函数 ↔ 槽位」静态闭合 | `docs/03` |
-| **权重容器已解出** | `8B 魔数 "DLSSNRW1"` + `uint32` 条目数(153) + `uint32` 索引区结束偏移(0x1629) + 153 条变长描述符 + 连续载荷(147,683,778 B)；**三条恒等式闭合到 0** | `docs/05` |
-| **Intel 可行性评估** | 内核分类 **A=7 / B=20 / C=7**；资源适配（最大 `group_segment_fixed_size` **64,640 B**，距 64 KiB 上限 **896 B**）；host 侧**需替换 29/194 = 14.9%**；**S0–S7 路线图 + 23 个里程碑** | `docs/05` |
-| **分析工具** | 三个通用只读工具：PE 解析器、AMDGPU msgpack 元数据提取器、字节扫描器 | `tools/` |
-| **协作方法论** | 多智能体协作流程、质量门禁与验收链、**24 条由真实事故得到的定规** | `team-methodology/` |
+| **Module shape** | 12 sections; 17 exports, **all `version.dll` API names** (each a 16-byte `FF 25` jump stub); import surface of **194 entries / 10 DLLs**, of which `amdhip64_7.dll` contributes **29** HIP APIs | `docs/03` |
+| **Device code** | `.hip_fat` is a clang offload bundle: **9 bundles = 1 host placeholder + 8 device targets**, all `amdgcn-amd-amdhsa`; **34 kernels** per target | `docs/03` |
+| **Kernel parameter spec** | For all 34 kernels: `kernarg_segment_size`, `by_value` sizes, full `.args` tables, resource fields; **3 exception kernels** (`k_flag_wait`=16 / `k_align_probe`=8 / `k_flag_set`=12) | `docs/04` |
+| **34/34 registration pairing** | Two **8-byte-stride** function-pointer tables + **34 registration calls paired to table slots 34/34** ⇒ "kernel name ↔ wrapper ↔ slot" closed statically | `docs/03` |
+| **Weight container decoded** | `8B magic "DLSSNRW1"` + `uint32` entry count (153) + `uint32` index-end offset (0x1629) + 153 variable-length descriptors + contiguous payload (147,683,778 B); **three identities close to 0** | `docs/05` |
+| **Intel feasibility** | Kernel classes **A=7 / B=20 / C=7**; resource adaptation (max `group_segment_fixed_size` **64,640 B**, **896 B** under the 64 KiB limit); host side needs **29/194 = 14.9%** replaced; **S0–S7 roadmap with 23 milestones** | `docs/05` |
+| **Analysis tools** | Three general-purpose read-only tools: PE parser, AMDGPU msgpack metadata extractor, byte scanner | `tools/` |
+| **Collaboration methodology** | Multi-agent workflow, quality gates and acceptance chain, **24 rules derived from real incidents** | `team-methodology/` |
 
-### 已知的硬结论（含我们自己的错误更正）
+### Hard conclusions (including our own corrections)
 
-我们**保留了更正轨迹**，包括推翻自己先前的结论：
+We **kept the correction trail**, including reversals of our own earlier conclusions:
 
-- ✅ **34/34 注册配对是直接字节证据**（此前一度被写成"排除法推断"）；
-- ✅ **权重实测推翻源码常量**：真实层数是 **1×47 / 4×15（23–29、40–47）/ 5×9（30–38）**，与源码里的"瓶颈统一 4 层"不符（**不一致块 10 个 = 30–39**）；冲突时**以数据文件为准**；
-- ✅ **`descsz` 差值从 1,410 更正为 938**（原为算术错误）、去重后 **6 个取值**；
-- ✅ **「无上游源码」这一约束被推翻**：工作区**存在**一份 pass 侧源码（但与 DLL 不同构）；原判"不存在"是检索范围不足造成的**假否定**；
-- ✅ **`71 block` 的枚举上界未定**：该数字只出现在文档转述里，DLL 内无对应立即数。
+- ✅ **The 34/34 registration pairing is direct byte evidence** (it was once written as "elimination-based inference").
+- ✅ **Weight measurements overturn source-code constants**: the real layer structure is **1×47 / 4×15 (23–29, 40–47) / 5×9 (30–38)**, contradicting the source's "bottleneck uniformly 4 layers" (**inconsistent blocks: 10 = 30–39**); on conflict, **the data file wins**.
+- ✅ **The `descsz` delta was corrected from 1,410 to 938** (an arithmetic error), and there are **6 distinct values** after dedup.
+- ✅ **The "no upstream source" constraint was overturned**: the workspace **does** contain a pass-side source tree (though non-isomorphic to the DLL); the earlier "it does not exist" was a **false negative** caused by too narrow a search scope.
+- ✅ **The `71 block` enum upper bound is undetermined**: that number appears only in documentation transcriptions; there is no corresponding immediate in the DLL.
 
-> 我们的方法论有一条硬规定：**凡"不存在 X"的断言，必须给出「搜索范围 + 匹配模式 + 命中数」**。所以你会在文档里看到大量"0 命中"的可复现记录 —— 这是刻意的。
+> One hard rule in our methodology: **any "X does not exist" claim must give range + pattern + hit count.** That is why you will see many reproducible "0 hits" records in the docs — it is deliberate.
 
 ---
 
-## 仓库结构
+## Repository Layout
 
 ```
 .
-├── README.md                  本文件
-├── LEGAL.md                   法律声明（项目性质、权利主张、移除承诺）
-├── EXTERNAL_BINARIES.md       第三方二进制清单（来源 / 大小 / SHA256 / 许可 / 用途）
-├── LICENSE                    MIT（原创部分）+ 明确排除第三方二进制
-├── CONTRIBUTING.md            贡献指南（含证据要求）
-├── .gitattributes             Git LFS 配置
+├── README.md                  This file (English, authoritative)
+├── README.zh-CN.md            简体中文
+├── README.ja.md               日本語
+├── README.ko.md               한국어
+├── README.es.md               Español
+├── README.fr.md               Français
+├── LEGAL.md                   Legal notice (nature of project, rights, takedown)
+├── EXTERNAL_BINARIES.md       Third-party binaries (origin / size / SHA256 / license / use)
+├── LICENSE                    MIT (original work) + explicit exclusion of third-party binaries
+├── CONTRIBUTING.md            Contribution guide (evidence requirements)
+├── .gitattributes             Git LFS configuration
 ├── .gitignore
 ├── docs/
-│   ├── 01-项目背景.md            项目目标、分析对象、三项环境约束
-│   ├── 02-分析方法论.md          方法链与分析纪律
-│   ├── 03-DLL结构分析.md         模块形态、设备代码、两张指针表、注册机制
-│   ├── 04-内核参数规格.md        34 内核参数与资源字段全表
-│   ├── 05-Intel可行性评估.md     分类 / 资源 / 算子 / host 替换 / 权重 / 路线图 / 待查清单
-│   └── 06-未解缺口与限制.md      诚实声明：什么没做出来、为什么
+│   ├── 01-项目背景.md            Project goal, analysis target, three environment constraints
+│   ├── 02-分析方法论.md          Method chain and analysis discipline
+│   ├── 03-DLL结构分析.md         Module shape, device code, the two pointer tables, registration
+│   ├── 04-内核参数规格.md        Full parameter and resource tables for all 34 kernels
+│   ├── 05-Intel可行性评估.md     Classification / resources / operators / host replacement / weights / roadmap / checklist
+│   └── 06-未解缺口与限制.md      Honest limits: what we could not produce, and why
 ├── tools/
-│   ├── pe_parser.py          PE32/PE32+ 解析（含手工 .reloc、.pdata）
-│   ├── msgpack_extract.py    AMDGPU 内核元数据提取
-│   ├── byte_scanner.py       通用字节模式扫描 / 直方图 / 熵 / 字符串提取
+│   ├── pe_parser.py         PE32/PE32+ parsing (manual .reloc, .pdata)
+│   ├── msgpack_extract.py   AMDGPU kernel metadata extraction
+│   ├── byte_scanner.py      Generic byte-pattern scan / histogram / entropy / strings
 │   └── README.md
 ├── team-methodology/
 │   ├── 01-多智能体协作流程.md
 │   ├── 02-质量门禁与验收链.md
-│   ├── 03-已确立的定规.md     24 条，每条都来自一次真实错误
+│   ├── 03-已确立的定规.md     24 rules, each from a real mistake
 │   └── 04-禁用措辞检查的校准.md
-└── binaries/                 第三方二进制（Git LFS）
+└── binaries/                 Third-party binaries (Git LFS)
     ├── dlssnr_amd_pass1.dll
     ├── dlssnr_amd_pass2.dll
     ├── dlssnr_amd_pass3.dll
@@ -108,78 +118,80 @@
         └── OptiScaler.dll
 ```
 
-> 注：`pass1/2/3` 三个 DLL **逐字节相同**（同一 SHA256），是发布包的真实结构，非三个处理阶段。
+> Note: the three `pass1/2/3` DLLs are **byte-identical** (same SHA256). That is the real structure of the release package, not three processing stages.
+
+> **Note on documentation language**: the six analysis documents under `docs/` and the four methodology documents under `team-methodology/` are currently written in **Chinese**. English translations are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-## 快速开始
+## Quick Start
 
 ```bash
 git clone https://github.com/Paimonshen/dlss-nr-reverse-engineering.git
 cd dlss-nr-reverse-engineering
 
-# 二进制由 Git LFS 跟踪，克隆后请拉取真实内容（约 186 MB）
+# Binaries are tracked by Git LFS; pull real content after cloning (~186 MB)
 git lfs install
 git lfs pull
 ```
 
-### 依赖
+### Dependencies
 
 ```bash
 pip install pefile msgpack    # Python 3.11+
 ```
 
-### 复现主要结论
+### Reproduce the main results
 
 ```bash
-# ① 模块形态：12 节 / 17 个 version.dll 导出 / 194 条导入（10 个 DLL）
+# 1) Module shape: 12 sections / 17 version.dll exports / 194 imports (10 DLLs)
 python tools/pe_parser.py info binaries/dlssnr_amd_pass1.dll --limit 0
 
-# ② 重定位：19 个块、2044 条目（DIR64 2040 + ABSOLUTE 4）
+# 2) Relocations: 19 blocks, 2044 entries (DIR64 2040 + ABSOLUTE 4)
 python tools/pe_parser.py reloc binaries/dlssnr_amd_pass1.dll
 
-# ③ 异常表：1167 条目
+# 3) Exception table: 1167 entries
 python tools/pe_parser.py pdata binaries/dlssnr_amd_pass1.dll --pdata-limit 0
 
-# ④ 8 个设备目标 × 34 个内核，各内核的 kernarg 大小与 by_value 参数
+# 4) 8 device targets x 34 kernels, with kernarg size and by_value args
 python tools/msgpack_extract.py binaries/dlssnr_amd_pass1.dll --json out/kernels.json
 
-# ⑤ 权重容器魔数（命中 1）与载荷字节分布（熵 5.902444 bits/byte）
+# 5) Weight container magic (1 hit) and payload byte distribution (entropy 5.902444 bits/byte)
 python tools/byte_scanner.py binaries/dlssnr_on_amd_weights.bin --hex "44 4C 53 53 4E 52 57 31"
 python tools/byte_scanner.py binaries/dlssnr_on_amd_weights.bin --byte-histogram --range 0x1629:
 ```
 
-三个工具均为**只读**（除显式 `--out` / `--json` / `--hex-out` 外不写入）。详见 [`tools/README.md`](tools/README.md)。
+All three tools are **read-only** (they write nothing except to explicit `--out` / `--json` / `--hex-out` paths). See [tools/README.md](tools/README.md).
 
 ---
 
-## 分析与实验环境的三项限制（请读者注意）
+## Three Environment Constraints (please note)
 
-本项目的所有结论都受以下三项限制，文档中已逐处标注：
+Every conclusion is bounded by these three constraints, and the docs mark them throughout:
 
-1. **无 AMD 硬件** ⇒ 无法做运行期观测（这是三个缺口中最关键的一环）；
-2. **无 AMDGPU 反汇编器**（`llvm-objdump` 不可用）⇒ 设备侧反汇编未做，`swin_layer` 等符号的调用关系未取证；
-3. **无 Intel 工具链 / Xe 硬件** ⇒ 一切涉及 Xe / SPIR-V / XMX 具体能力的问题**一律标注为「需查外部资料」，不作结论**。
+1. **No AMD hardware** ⇒ no runtime observation (the most critical of the three gaps).
+2. **No AMDGPU disassembler** (`llvm-objdump` unavailable) ⇒ no device-side disassembly; call relationships of symbols such as `swin_layer` are unproven.
+3. **No Intel toolchain / Xe hardware** ⇒ everything about specific Xe / SPIR-V / XMX capabilities is **marked "needs external documentation" and left without conclusion**.
 
-**因此本项目的结论层级是「静态字节层面」**：能给出的都给了字节证据；不能给的都标了"未解"并要求外部资料。
+**Therefore the level of our conclusions is "static byte level"**: whatever can be given is given with byte evidence; whatever cannot is marked "unresolved" with a request for external documentation.
 
 ---
 
-## 如何参与
+## How to Contribute
 
-- **补上三个缺口**（见开头「求助社区」）—— 最有价值的贡献；
-- **修正结论**：若你发现文档中的结论与字节证据不符，请附**文件 + 偏移 + 原始字节 + 复现命令**；
-- **补充外部资料**：为「需查外部资料」的条目提供规范层面的出处；
-- **改进工具或文档**。
+- **Close the three gaps** (see "Help Wanted" above) — the most valuable contribution.
+- **Correct a conclusion**: if a documented conclusion disagrees with the byte evidence, please attach **file + offset + raw bytes + reproduction command**.
+- **Supply external documentation** for items marked "needs external documentation".
+- **Improve the tools or docs.**
 
-详见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。本项目对证据的要求较高（全称否定必须给范围+模式+命中数），但**结论正确而证据不足的 PR 只会被要求补充证据，不会被直接拒绝**。
+See [CONTRIBUTING.md](CONTRIBUTING.md). This project has high evidence standards (universal negatives must give range + pattern + hit count), but **a PR with a correct conclusion and insufficient evidence will only be asked to add evidence, never rejected outright**.
 
-## 法律与许可
+## License and Legal
 
-- **原创部分**（文档、脚本）采用 **MIT 许可**，见 [`LICENSE`](LICENSE)；
-- **第三方二进制**（`binaries/` 下）**不在该许可范围内**，版权归各自所有者，来源与 SHA256 见 [`EXTERNAL_BINARIES.md`](EXTERNAL_BINARIES.md)；
-- 本项目为**互操作性研究**，不包含任何规避 DRM 的代码，也不包含 NVIDIA 任何受版权保护的二进制；若版权方要求移除，将立即配合 —— 见 [`LEGAL.md`](LEGAL.md)。
+- **Original work** (docs, scripts) is under the **MIT License** — see [LICENSE](LICENSE).
+- **Third-party binaries** (under `binaries/`) are **not** covered by that license; copyright belongs to their respective owners. Origins and SHA256 are in [EXTERNAL_BINARIES.md](EXTERNAL_BINARIES.md).
+- This is **interoperability research**. It contains no DRM-circumvention code and no NVIDIA copyrighted binaries. If a rights holder requests removal, we will comply immediately — see [LEGAL.md](LEGAL.md).
 
-## 免责声明
+## Disclaimer
 
-本项目为独立的静态研究成果，**按"现状"提供，不附带任何明示或默示担保**。使用者**自行承担**因使用本仓库内容而产生的一切风险与法律后果。
+This is independent static research, provided **"as is", without warranty of any kind**. Users **assume all risk and legal responsibility** for any use of this repository's contents.
