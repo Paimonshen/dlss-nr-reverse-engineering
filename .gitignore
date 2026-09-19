@@ -1,0 +1,73 @@
+# === 凭证与密钥（最高优先级，绝不提交） ===
+*.key
+*.pem
+*.pfx
+*.p12
+*.jks
+*.keystore
+.env
+.env.*
+credentials.json
+secrets.json
+*.credentials.yaml
+*_token*
+*_secret*
+id_rsa*
+id_ed25519*
+.aws/
+.ssh/
+.npmrc
+.pypirc
+
+# === NVIDIA 受版权保护的二进制（明确禁止） ===
+nvngx_dlssnr.dll
+nvngx_*.dll
+*.nv_fatbin
+
+# === 依赖与构建产物 ===
+node_modules/
+build/
+dist/
+out/
+target/
+*.obj
+*.lib
+*.exp
+*.pdb
+*.ilk
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# === 临时文件与日志 ===
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+.Thumbs.db
+desktop.ini
+
+# === 编辑器 / IDE ===
+.vscode/
+.idea/
+*.suo
+*.user
+*.code-workspace
+
+# === 内部工作产物（不公开） ===
+# 内部的团队协作记录、台账、复核工具与输出不进入本仓库
+_team/
+_verify_tools*/
+_sum_tools*/
+_xe_tools*/
+_wfield_tools/
+_srcloc_tools/
+*.agent-teams/
+
+# === 其它 ===
+.DS_Store
