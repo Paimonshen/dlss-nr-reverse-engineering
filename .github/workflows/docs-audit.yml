@@ -1,0 +1,126 @@
+name: docs-audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  link-audit:
+    name: Markdown anchors / links / patterns
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Read-only: no dependencies are needed for the auditor.
+      - name: Audit anchors, relative links and configured patterns
+        run: |
+          python tools/link_audit.py . \
+            --exempt "team-methodology/04-禁用措辞检查的校准.md" \
+            --leak 'F:\' \
+            --leak 'C:\Users' \
+            --leak '_team' \
+            --leak '队长' \
+            --leak 'FINAL_STATUS' \
+            --leak 'INVENTORY' \
+            --leak '.tmp_'
+
+      # The NVIDIA original binary must never be redistributed here, so its
+      # filename must not appear in any file *except* the documents that state
+      # the prohibition. Keep that check separate and explicit.
+      - name: No NVIDIA binary filename outside the prohibition notices
+        run: |
+          set -eu
+          hits=0
+          while IFS= read -r f; do
+            case "$f" in
+              CONTRIBUTING.md|EXTERNAL_BINARIES.md|LEGAL.md|.gitignore) continue ;;
+            esac
+            if grep -qF 'nvngx_dlssnr' "$f" 2>/dev/null; then
+              echo "unexpected NVIDIA binary filename reference in: $f"
+              hits=$((hits+1))
+            fi
+          done < <(git ls-files '*.md' '*.py' '*.yml' '*.yaml' '*.txt' '.gitignore' '.gitattributes')
+          [ "$hits" -eq 0 ] || exit 1
+          echo "OK: no unexpected NVIDIA binary filename references"
+
+      - name: No absolute local paths or credentials in text files
+        run: |
+          set -eu
+          # Real leaked paths look like a drive letter followed by a separator and
+          # a word, or a concrete /home/<name>/ or /Users/<name>/ prefix.
+          # `tools/` is excluded: the auditor and the parsers legitimately contain
+          # path-shaped *patterns* (regex literals) rather than real paths.
+          bad=0
+          while IFS= read -r f; do
+            case "$f" in
+              tools/*) continue ;;
+            esac
+            if grep -nE '[A-Za-z]:\\[A-Za-z]|/home/[a-z0-9_]+/|/Users/[A-Za-z0-9_]+/' "$f" \
+                 | grep -vE 'example|Example|placeholder|your|\\<|\bnope\b' >/dev/null 2>&1; then
+              echo "possible absolute path in: $f"
+              grep -nE '[A-Za-z]:\\[A-Za-z]|/home/[a-z0-9_]+/|/Users/[A-Za-z0-9_]+/' "$f" || true
+              bad=$((bad+1))
+            fi
+          done < <(git ls-files '*.md' '*.py' '*.yml' '*.yaml' '*.txt')
+          [ "$bad" -eq 0 ] || exit 1
+          echo "OK: no absolute local paths found"
+
+  tools-smoke:
+    name: Tools run (--help and real inputs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install tool dependencies
+        run: python -m pip install --upgrade pip pefile msgpack
+
+      - name: Every tool must respond to --help with exit 0
+        run: |
+          set -eu
+          for t in tools/pe_parser.py tools/msgpack_extract.py tools/byte_scanner.py tools/link_audit.py; do
+            echo "--- $t --help"
+            python "$t" --help >/dev/null
+          done
+          echo "OK: all tools exit 0 on --help"
+
+      - name: pe_parser on the analysed module
+        run: |
+          set -eu
+          python tools/pe_parser.py info   binaries/dlssnr_amd_pass1.dll --limit 0
+          python tools/pe_parser.py reloc  binaries/dlssnr_amd_pass1.dll
+          python tools/pe_parser.py pdata  binaries/dlssnr_amd_pass1.dll --pdata-limit 0
+
+      - name: msgpack_extract on the analysed module
+        run: python tools/msgpack_extract.py binaries/dlssnr_amd_pass1.dll --json /tmp/kernels.json
+
+      - name: byte_scanner on the weight container
+        run: |
+          set -eu
+          python tools/byte_scanner.py binaries/dlssnr_on_amd_weights.bin \
+            --hex "44 4C 53 53 4E 52 57 31"
+          python tools/byte_scanner.py binaries/dlssnr_on_amd_weights.bin \
+            --byte-histogram --range 0x1629:
+
+      - name: Verify published SHA256 values still match the binaries
+        run: |
+          set -eu
+          echo "3C9CA13F0F5FC36A690BA424C457003BCFCC1080B4B785974CDD7E9AE2BC1DD8  binaries/dlssnr_amd_pass1.dll" | sha256sum -c -
+          echo "3C9CA13F0F5FC36A690BA424C457003BCFCC1080B4B785974CDD7E9AE2BC1DD8  binaries/dlssnr_amd_pass2.dll" | sha256sum -c -
+          echo "3C9CA13F0F5FC36A690BA424C457003BCFCC1080B4B785974CDD7E9AE2BC1DD8  binaries/dlssnr_amd_pass3.dll" | sha256sum -c -
+          echo "6BF8DC931EF3CCFFE18C82DE26AB374156E7F19539FFCF8EABAA25DCA5CF15AB  binaries/dlssnr_on_amd_weights.bin" | sha256sum -c -
+          echo "061F15F86671772A278B69B744355E203EFF9A929A360E225F7B3DC8491F7186  binaries/OptiScaler/OptiScaler.dll" | sha256sum -c -
