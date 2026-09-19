@@ -72,3 +72,9 @@ _srcloc_tools/
 
 # === 其它 ===
 .DS_Store
+
+# 临时/草稿文件（不入库）
+.tmp_*
+*.tmp.py
+_scratch/
+

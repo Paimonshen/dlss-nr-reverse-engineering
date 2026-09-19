@@ -1,6 +1,6 @@
-# Rétro-ingénierie de DLSS NR : module AMD → faisabilité sur Intel Arc (Xe/XMX)
+# Rétro-ingénierie de DLSS NR : module AMD → récupération des sources multi-GPU
 
-> **En une ligne** : une étude complète de rétro-ingénierie statique du module DLSS NR côté AMD, produisant une spécification exhaustive des paramètres de kernels et une évaluation de faisabilité du portage — **et signalant honnêtement les points où nous sommes bloqués**. Nous avons maintenant besoin de l'aide de la communauté pour combler les derniers manques.
+> **En une ligne** : une étude complète de rétro-ingénierie statique du module DLSS NR côté AMD — la base pour **récupérer un arbre de sources reconstruisible** puis, à partir de lui, une **base de code unique multi-GPU** dotée de backends portable, accéléré par Intel, accéléré par AMD et de référence NVIDIA. L'étude est achevée et dit honnêtement où elle s'est bloquée ; **le travail de récupération est l'étape suivante**.
 
 **Languages / 语言 / 言語 / 언어 / Idioma / Langue:**
 [English](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [**Français**](README.fr.md)
@@ -8,6 +8,40 @@
 > Les traductions sont maintenues par la communauté. Si une traduction prend du retard, **l'anglais fait foi**. Les corrections sont bienvenues — voir [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
+
+## 🎯 Où cela mène (objectifs du projet)
+
+Ce dépôt a commencé comme une analyse statique — mais l'analyse n'a jamais été qu'**un moyen au service d'une fin**. L'objectif que nous poursuivons désormais, dans l'ordre :
+
+### Stage 1 — Récupérer les sources : décompiler le programme principal
+
+Passer de *comprendre des octets* à **un arbre de sources maintenable** : décompiler le programme principal et récupérer des sources lisibles et reconstruisibles. La spécification des paramètres de kernel ([`docs/04`](docs/04-Kernel-Parameter-Spec.md)), le format du conteneur de poids et le mécanisme d'enregistrement constituent le **matériel de référence** qui rend une reconstruction fidèle vérifiable — c'est pourquoi ils ont été produits en premier.
+
+> ⚠️ **Blocage connu, dit d'emblée.** Récupérer un arbre de sources *utilisable* exige la **liaison de distribution `71 block → kernel`** ; sans elle, la couche d'ordonnancement reconstruite reste une coquille trouée en son milieu. Cette liaison est actuellement **impossible à obtenir dans les conditions disponibles** (les quatre pistes sont fermées — voir [Aide recherchée](#-aide-recherchée-trois-manques-précis-que-nous-n-avons-pas-pu-combler) et [`docs/06`](docs/06-Open-Gaps-and-Limits.md)). L'effort de décompilation **butera donc sur le même manque**. Le travail vaut malgré tout la peine — l'essentiel de l'arbre peut être récupéré —, mais la couche de distribution ne peut pas être close par la seule décompilation.
+
+### Stage 2 — Une compilation en instructions communes qui tourne partout
+
+Avant d'optimiser, la faire **tourner tout court**. Produire une compilation qui **n'utilise aucun jeu d'instructions propriétaire d'un fabricant** : un chemin de calcul simple et portable. Cela établit l'exactitude et donne à chaque backend ultérieur une **référence valide et connue à laquelle se comparer**.
+
+### Stage 3 — Des compilations accélérées par fabricant
+
+Une fois la compilation portable fonctionnelle, ajouter l'**accélération propre à chaque fabricant** sous forme de backends distincts :
+
+| Backend | Cible | Chemin d'accélération |
+|---|---|---|
+| **Accélération Intel** | Intel Arc (Xe) | Xe Matrix Extensions (XMX) |
+| **Accélération AMD** | AMD RDNA / CDNA | HIP et cœurs matriciels |
+| **Original NVIDIA** | NVIDIA | l'implémentation NGX / DLSS du fabricant lui-même |
+
+> ⚠️ **Contrainte propre au chemin NVIDIA.** Ce dépôt **ne contient pas de binaires sous copyright NVIDIA** ([`LEGAL.md`](LEGAL.md) §8), et il a été confirmé que la copie publiquement disponible du composant NVIDIA est une **couche d'interface ne portant aucune métadonnée de kernel analysable** (voir [`EXTERNAL_BINARIES.md`](EXTERNAL_BINARIES.md) et [`docs/03`](docs/03-DLL-Structure-Analysis.md)). Le chemin NVIDIA est donc utilisable **comme référence pour le comportement de l'interface et pour recouper les résultats** — il **n'est pas** une source de kernels décompilables. Tout travail côté NVIDIA ici reste au niveau de l'interface / de la documentation.
+
+### Stage 4 — Une seule base de code, tous les GPU
+
+**Intégrer les backends dans un arbre de sources unique** avec un mécanisme de sélection de backend, afin qu'**une seule base de code cible tous les GPU pris en charge** : le chemin portable comme repli universel, l'accélération par fabricant là où elle est disponible.
+
+> **En une phrase :** *récupérer les sources → les faire tourner de façon portable → les accélérer par fabricant → les unifier en une seule base de code multi-GPU.*
+
+> **État de ces étapes.** Les étapes 2 à 4 décrivent l'**orientation visée, et non un travail achevé**. Ce dépôt ne contient actuellement que de l'**analyse et des outils** — aucun arbre de sources décompilé et aucune implémentation de backend. Tout ce qui est publié ici se situe au **niveau statique des octets**. Nous préférons le dire clairement plutôt que de suggérer des progrès que nous ne pouvons pas étayer.
 
 ## 🙏 Aide recherchée : trois manques précis que nous n'avons pas pu combler
 

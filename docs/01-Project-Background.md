@@ -19,7 +19,29 @@ The device-side code of this DLL is wrapped inside the `.hip_fat` section; it is
 
 ## 2. Why This Was Done
 
-The goal of the project is to answer one concrete engineering question:
+### 2.0 The larger goal (and where this analysis fits)
+
+The analysis in this repository is **one stage of a longer effort**, not an end in itself. The direction we are working toward:
+
+> **Recover the source → get it running portably → accelerate it per vendor → unify it into one cross-GPU codebase.**
+
+| Stage | What it means | Status |
+|---|---|---|
+| **1. Recover the source** | Decompile the main program and reconstruct a readable, rebuildable source tree | **Next stage.** This repository's analysis is the input to it |
+| **2. A common-instruction build** | A build using **no vendor-proprietary instruction set** — a plain portable compute path, so the thing **runs at all** and every later backend has a known-good reference | Direction |
+| **3. Vendor-accelerated builds** | Add acceleration as separate backends: **Intel** (Xe / XMX), **AMD** (RDNA / CDNA, HIP and matrix cores), and **NVIDIA** (the vendor's own NGX / DLSS implementation) | Direction |
+| **4. One codebase, every GPU** | Integrate the backends into a **single source tree with backend selection** — the portable path as the universal fallback | Direction |
+
+Two constraints that follow directly from what this analysis established, and that must not be glossed over:
+
+1. **Stage 1 hits the same unsolved gap.** Reconstructing a *usable* source tree requires the **`71 block → kernel` dispatch binding**. That binding is **unobtainable under the available conditions** (all four avenues closed — see [`06-Open-Gaps-and-Limits.md`](06-Open-Gaps-and-Limits.md)). Most of the tree can be recovered; the dispatch layer cannot, by decompilation alone.
+2. **The NVIDIA path is reference-only.** This repository **does not contain NVIDIA copyrighted binaries** (see [`../LEGAL.md`](../LEGAL.md) §8), and the publicly available copy of the NVIDIA component is an **interface layer with no analysable kernel metadata**. It can be used to **cross-check interface behaviour and results**; it is **not** a source of decompilable kernels.
+
+**None of stages 2–4 is completed work.** What this repository currently contains is analysis and tooling, at the **static byte level**.
+
+### 2.1 The concrete question this analysis answers
+
+The analysis was scoped to answer one concrete engineering question:
 
 > **Can this DLSS NR module be recompiled / ported so that it runs on Intel Arc (Xe / XMX) hardware?**
 

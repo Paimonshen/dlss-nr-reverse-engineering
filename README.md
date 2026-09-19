@@ -1,11 +1,47 @@
-# DLSS NR Reverse Engineering: AMD Module → Intel Arc (Xe/XMX) Feasibility
+# DLSS NR Reverse Engineering: AMD Module → Cross-GPU Source Recovery
 
-> **In one line**: A thorough static reverse-engineering study of the AMD-side DLSS NR module, producing a complete kernel-parameter specification and a porting feasibility assessment — **and honestly marking where we got stuck**. We now need the community's help to close the last few gaps.
+> **In one line**: A thorough static reverse-engineering study of the AMD-side DLSS NR module — the foundation for **recovering a rebuildable source tree** and, from it, a **single cross-GPU codebase** with portable, Intel-accelerated, AMD-accelerated and NVIDIA-reference backends. The study is complete and honest about where it got stuck; **the recovery work is the next stage**.
 
 **Languages / 语言 / 言語 / 언어 / Idioma / Langue:**
 [**English**](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
 > Translations are community-maintained. If a translation lags behind, **English is authoritative**. Corrections welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## 🎯 Where This Is Going (project goals)
+
+This repository began as a static analysis — but the analysis was only ever **a means to an end**. The goal we are now working toward, in order:
+
+### Stage 1 — Recover the source: decompile the main program
+
+Move from *understanding bytes* to **a maintainable source tree**: decompile the main program and recover readable, rebuildable source. The kernel parameter specification ([`docs/04`](docs/04-Kernel-Parameter-Spec.md)), the weight container format, and the registration mechanism are the **reference material** that make a faithful reconstruction checkable — which is why they were produced first.
+
+> ⚠️ **Known blocker, stated up front.** Recovering a *usable* source tree requires the **`71 block → kernel` dispatch binding**; without it, the reconstructed scheduling layer is still a stub with a hole in the middle. That binding is currently **unobtainable under the available conditions** (all four avenues closed — see [Help Wanted](#-help-wanted-three-specific-gaps-we-could-not-close) and [`docs/06`](docs/06-Open-Gaps-and-Limits.md)). The decompilation effort will therefore **hit the same gap**. The work is still worth doing — most of the tree can be recovered — but the dispatch layer cannot be closed by decompilation alone.
+
+### Stage 2 — A common-instruction build that runs anywhere
+
+Before optimizing, make it **run at all**. Produce a build that uses **no vendor-proprietary instruction set** — a plain, portable compute path. This establishes correctness, and gives every later backend a **known-good reference to compare against**.
+
+### Stage 3 — Vendor-accelerated builds
+
+With the portable build working, add **vendor-specific acceleration** as separate backends:
+
+| Backend | Target | Acceleration path |
+|---|---|---|
+| **Intel acceleration** | Intel Arc (Xe) | Xe Matrix Extensions (XMX) |
+| **AMD acceleration** | AMD RDNA / CDNA | HIP and matrix cores |
+| **NVIDIA original** | NVIDIA | the vendor's own NGX / DLSS implementation |
+
+> ⚠️ **Constraint specific to the NVIDIA path.** This repository **does not contain NVIDIA copyrighted binaries** ([`LEGAL.md`](LEGAL.md) §8), and the publicly available copy of the NVIDIA component has been confirmed to be an **interface layer carrying no analysable kernel metadata** (see [`EXTERNAL_BINARIES.md`](EXTERNAL_BINARIES.md) and [`docs/03`](docs/03-DLL-Structure-Analysis.md)). The NVIDIA path is therefore usable **as a reference for interface behaviour and for cross-checking results** — it is **not** a source of decompilable kernels. Any NVIDIA-side work here stays at the interface / documentation level.
+
+### Stage 4 — One codebase, every GPU
+
+**Integrate the backends into a single source tree** with a backend-selection mechanism, so that **one codebase targets all supported GPUs** — the portable path as the universal fallback, vendor acceleration wherever it is available.
+
+> **In one sentence:** *recover the source → get it running portably → accelerate it per vendor → unify it into one cross-GPU codebase.*
+
+> **Status of these stages.** Stages 2–4 describe the **intended direction, not completed work**. This repository currently contains **analysis and tooling only** — no decompiled source tree and no backend implementation. Everything published here is at the **static byte level**. We would rather state that plainly than imply progress we cannot evidence.
 
 ---
 

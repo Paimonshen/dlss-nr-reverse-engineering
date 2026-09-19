@@ -1135,6 +1135,8 @@ uint64   size             ← LE, payload byte count of that entry
 
 ## 6. Roadmap
 
+> **Scope of this roadmap.** S0–S7 below is the **Intel track** of a larger, multi-stage effort: recover the source -> a common-instruction build -> vendor-accelerated backends (Intel / AMD / NVIDIA) -> one cross-GPU codebase. This roadmap covers the Intel-accelerated path only; the other tracks are described in [01-Project-Background.md](01-Project-Background.md) §2.0. Do not read this chapter as the whole project plan.
+
 > **Roadmap discipline**: the **stage division of this roadmap is based on confirmed facts**; wherever a stage's **determination premise** belongs to "needs external documentation", **that stage is marked "prerequisite unclosed"**, and the items to look up it depends on are listed explicitly. One **must not** write "needs external documentation" as "the conditions are already in place".
 
 ### 6.1 Overview of the Stage Division
