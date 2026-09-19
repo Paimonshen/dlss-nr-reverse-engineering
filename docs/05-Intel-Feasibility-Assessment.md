@@ -1409,6 +1409,8 @@ S0 (criteria settled)
 
 ### 8.1 Roadmap Determination Premises (**four, highest priority**)
 
+> **These four have since received externally-sourced answers.** See [`07-External-Evidence-Xe-Capabilities.md`](07-External-Evidence-Xe-Capabilities.md), which records findings **with citations** for G-01 … G-04 and marks the residual gaps explicitly. **That document is external evidence, not a measurement by this project** — its "reported / still needs verification" items must not be treated as settled. The entries below are kept as the record of what was open.
+
 | ID | Item to look up | Why it must be looked up | Which kernels it affects | Direction of verification |
 |---|---|---|---|---|
 | **G-01** | **whether Intel XMX provides directly callable primitives for matrix multiply / convolution; the coverage of its precision modes (including FP8 / FP16 / BF16 / INT8)** | among the 34 kernel names, forms such as `qkv` (k5 / k8 / k11 / k15), `attention` (k12 / k16), `conv_res` (k4 / k7 / k18), `ffwd` (k3 / k6 / k17), `swin` (k0 / k1 / k2 / k29–k33) all fall within the name domain of the three operator classes "matrix multiply / convolution / elementwise". **There is no criterion whatsoever within this environment** to confirm XMX's support surface for these forms; for the three kernels whose names contain `fp8`, their `.language` is entirely `OpenCL C` and their `.language_version` is entirely `[2,0]` ⇒ **the language surface provides no precision information** | **25** (k0–k19, k29–k33) | the Intel Arc GPU architecture manual (the XMX instructions and data types chapters); the Intel oneAPI Level Zero specification (kernel capability query interfaces); the Intel oneAPI DPC++/SYCL documentation (sub-group matrix extensions). **Source ID: T-01** |

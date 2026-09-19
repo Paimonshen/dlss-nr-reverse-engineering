@@ -1409,6 +1409,8 @@ S0 (判据落定)
 
 ### 8.1 路线图判定前提（**四条，最高优先级**）
 
+> **这四条已获得来自外部资料的答复。** 见 [`07-External-Evidence-Xe-Capabilities.md`](07-External-Evidence-Xe-Capabilities.md)：该文档对 G-01…G-04 给出**带引用的结论**，并**显式标注残余缺口**。**该文档属外部证据，不是本项目的实测** —— 其中标为「reported / still needs verification」的条目**不得当作已定论**。下面的条目保留，作为"当时未闭合"的记录。
+
 | 编号 | 待查项 | 为什么必须查 | 影响哪些 kernel | 查证方向 |
 |---|---|---|---|---|
 | **G-01** | **Intel XMX 是否对矩阵乘 / 卷积提供可直接调用的原语；其精度模式（含 FP8 / FP16 / BF16 / INT8）覆盖范围** | 34 个 kernel 的名称中 `qkv`（k5 / k8 / k11 / k15）、`attention`（k12 / k16）、`conv_res`（k4 / k7 / k18）、`ffwd`（k3 / k6 / k17）、`swin`（k0 / k1 / k2 / k29–k33）等形态全部落在「矩阵乘 / 卷积 / 逐元素」三类算子的名称域内。**本环境内无任何判据**能确认 XMX 对这些形态的支持面；三个名称含 `fp8` 的内核，其 `.language` 全为 `OpenCL C`、`.language_version` 全为 `[2,0]` ⇒ **语言面不提供精度信息** | **25 个**（k0–k19、k29–k33） | Intel Arc GPU 架构手册（XMX 指令与数据类型章）；Intel oneAPI Level Zero 规范（kernel 能力查询接口）；Intel oneAPI DPC++/SYCL 文档（子组矩阵扩展）。**来源编号：T-01** |
