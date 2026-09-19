@@ -37,7 +37,7 @@ Ce **n'est pas une étude « terminée »**. Nous avons déterminé tout ce qui 
 
 Nous avons construit une table de correspondance 34 kernels × opérateurs, mais **les colonnes « prise en charge directe par XMX » et « chemin recommandé » de la table sont marquées « documentation externe requise » pour les 34/34 lignes — nous n'avons délibérément émis aucune conclusion sur les capacités**, faute de chaîne d'outils Intel et de matériel Xe pour le vérifier.
 
-**Si vous connaissez Intel Arc / oneAPI / Level Zero / SPIR-V**, aidez-nous à confirmer les points précis (priorité absolue : la prise en charge des primitives XMX et les modes de précision pour la multiplication matricielle/convolution ; savoir si l'ordre de réduction du split-K est contraint par la spécification ; les primitives de fenêtre/décalage de Swin ; et la frontière de faisabilité du chemin SPIR-V générique). La liste se trouve dans [docs/05-Intel可行性评估.md](docs/05-Intel可行性评估.md), chapitre 9.
+**Si vous connaissez Intel Arc / oneAPI / Level Zero / SPIR-V**, aidez-nous à confirmer les points précis (priorité absolue : la prise en charge des primitives XMX et les modes de précision pour la multiplication matricielle/convolution ; savoir si l'ordre de réduction du split-K est contraint par la spécification ; les primitives de fenêtre/décalage de Swin ; et la frontière de faisabilité du chemin SPIR-V générique). La liste se trouve dans [docs/05-Intel可行性评估.md](docs/05-Intel可行性评估.md), chapitre 8.
 
 > **Méthodologie du projet** : tout ce dont nous ne sommes pas certains est marqué « documentation externe requise » et **nous ne spéculons jamais**. Ces blancs dans la table sont **délibérés, et non des omissions**.
 

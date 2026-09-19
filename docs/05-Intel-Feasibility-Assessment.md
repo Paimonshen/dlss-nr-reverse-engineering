@@ -187,7 +187,7 @@
 **Three citation disciplines (class C)**:
 
 1. **Must not be phrased as "already exceeds the limit"**: the maximum `group_segment_fixed_size` of 64,640 B is **896 B below the 65,536 B (64 KiB) limit**, and `≥ 65536` gets **0** hits. The class C criterion is "this table's self-set 32768 band + closeness to the limit", **not "exceeding the limit"**.
-2. **The availability of that band on Xe** is marked as needing external documentation (see §9 T-06 / A4).
+2. **The availability of that band on Xe** is marked as needing external documentation (see §8 T-06 / A4).
 3. **The reason the 3 exception kernels enter class C is P4-b, not the resource surface**: their resource surface (`group` = 0, `priv` = 0, spill = 0, consistent across the 8 targets) **satisfies P1-a/b/c**; the basis for classing them C is the **layout exception** and "the only form carrying raw device pointer parameters". **This determination does not contradict "low resource demand".**
 
 ### 1.4 Summary of the Three-Class Decision Principles (one-sentence version)
@@ -292,9 +292,9 @@
 | A1 | **first establish an Xe-side measured query point for the SLM limit**, then judge whether 64,640 B can land. The criterion **must not** come from this DLL's bytes (there is no Xe criterion inside the DLL) | the fat binary **contains no Intel / Xe / SPIR-V target whatsoever** |
 | A2 | that query point **does not yet exist in the existing self-developed project tree**: its runtime queries only `max_compute_units` / `global_mem_size` / `max_work_group_size`, and **does not query local memory (SLM) capacity** | that tree's runtime source file |
 | A3 | account for `group_segment_fixed_size` per kernel as a **request amount**, and compare it per kernel against the Xe-side limit using the 34-row table of §3.5; the comparison result decides whether that kernel takes "1:1 recompilation" or "LDS tiled rewriting" | see §2.5 |
-| A4 | **needs external documentation**: the **per-Xe-core SLM capacity limit** of Intel Arc B580 (Xe2 / Battlemage), and the name and semantics of the interface through which that limit can be queried in the SYCL runtime | direction in §9 G-06 |
+| A4 | **needs external documentation**: the **per-Xe-core SLM capacity limit** of Intel Arc B580 (Xe2 / Battlemage), and the name and semantics of the interface through which that limit can be queried in the SYCL runtime | direction in §8 G-06 |
 | A5 | candidate repartitioning paths (**every item is a candidate, not a conclusion**): (a) keep the original LDS size and recompile 1:1; (b) split `group_segment_fixed_size` into multiple passes (tiling) according to the Xe SLM limit, moving the over-limit part out of SLM; (c) route part of the LDS content through global memory plus explicit synchronization. **The choice among the three depends on the measured limit from A4; this document makes no selection** | — |
-| A6 | when repartitioning, **the semantics of the 66 B implicit parameter span and the 190 B tail must be preserved**: LDS repartitioning and the kernarg layout are two independent matters, and repartitioning LDS **must not** incidentally change kernarg offsets | §4.4 |
+| A6 | when repartitioning, **the semantics of the 66 B implicit parameter span and the 190 B tail must be preserved**: LDS repartitioning and the kernarg layout are two independent matters, and repartitioning LDS **must not** incidentally change kernarg offsets | §5.4 |
 | A7 | the margin of **896 B (0.875 KiB)** must be written into the risk assessment: it is **the smallest margin** among all 272 entries, and any Xe-side SLM alignment / reserved overhead will consume it first | §2.1(a) |
 | A8 | **must not** use the phrasing "64,640 B exceeds the SLM limit of a single Xe-core on Xe" | contradicts the bytes (`>= 65536` gets 0 hits) |
 | A9 | **the first-level criterion for LDS repartitioning has not currently landed**: the **caller of** `swin_layer(SwinLDS&, unsigned char const*, BlobLayout const&, int)` is **not located** (`SwinLDS` is a parameter type name and cannot be mapped directly to a kernel name) ⇒ marked as needing external documentation | §4.6(c) |
@@ -340,7 +340,7 @@ Total **38 entries** = 7 + 2 + 4 + 4 + 2 + 6 + 6 + 7 ✅
 | B1 | when porting, **take the value cell by cell per kernel × target**; a single value must not be used to represent it | §2.2(a) |
 | B2 | **the value set must be tabulated per target**: kernels of the k5 kind need 24 B in `#1` / `#8` and 0 B in `#2`–`#7` —— requesting uniformly by the maximum introduces unnecessary occupancy; requesting uniformly by 0 goes out of bounds in `#1` / `#8` | §2.2(a) |
 | B3 | the **name of the counterpart and the allocation granularity** of the private segment on the Xe side must first be confirmed, before deciding "whether 24 B is an allocatable granularity" | needs external documentation, direction in B4 |
-| B4 | **needs external documentation**: the **corresponding concept, minimum allocation granularity, and whether it shares the same capacity pool with SLM or the register file**, for "per-thread private memory / scratch / spill space" on Xe | direction in §9 G-12 |
+| B4 | **needs external documentation**: the **corresponding concept, minimum allocation granularity, and whether it shares the same capacity pool with SLM or the register file**, for "per-thread private memory / scratch / spill space" on Xe | direction in §8 G-12 |
 | B5 | **do not infer Xe register counts from AMD's 24 B**: AMD's vgpr / sgpr and Xe's register file organization differ, and the two counts cannot be converted directly | §2.4 |
 | B6 | the two **unique values** (404 B @ k7 / `#8`, 84 B @ k25 / `#8`) should be listed separately in the risk list: they are extremes that **occur only in `#8`**, showing that "taking parameters from some single target" will miss them | §2.2(a) |
 
@@ -367,7 +367,7 @@ Total **38 entries** = 7 + 2 + 4 + 4 + 2 + 6 + 6 + 7 ✅
 | C4 | the relation to XMX | **there is no criterion whatsoever in this workspace** that can map AMD's `wavefront_size` to the XMX execution model. The XMX execution unit is related to sub-group, but **that relation is unprovable in this workspace** (`sub_group` gets **0 hits** in the self-developed project tree) | unresolved |
 | C5 | the current state of the existing self-developed implementation | the existing SYCL code uses scalar kernels with `item<1>` and **does not use** `nd_item` / `sub_group`; its GEMM part uses `joint_matrix` but **declares no sub-group size** | proven |
 | C6 | **needs external documentation (no conclusion given)** | on Xe: **the value range of the sub-group size and how to specify it explicitly**; **the XMX execution model** (DPAS instruction form, required sub-group width, tile size constraints); and "whether XMX requires a specific sub-group width" | needs external documentation |
-| C7 | **direction to look into** | see §9 G-05 | — |
+| C7 | **direction to look into** | see §8 G-05 | — |
 | C8 | porting discipline | since C2 has already established "32 or 64 must not be carried over", **any phrasing that treats `wavefront_size` directly as the Xe SIMD width does not hold**; on the Xe side this field should be regarded as **used only to record the AMD original value** and not participating in the derivation of Xe execution parameters | proven |
 | C9 | risk | the 64 of `#8 gfx9-generic` is an **isolated value** (34 of 272); if a unified strategy incorrectly takes `#8` as the baseline, it will skew all 34 records | proven |
 
@@ -1035,7 +1035,7 @@ uint64   size             ← LE, payload byte count of that entry
 | K2 | **the `kernarg_segment_size` of all 31 kernels is a multiple of 8**, and the absolute offsets of the three 8-byte hidden fields are all 8-aligned ⇒ **the 31 kernels are self-consistent on the "8-byte alignment" dimension** (**0 counterexamples**) | §5.4(a) |
 | K3 | **the `kernarg_segment_size = 12` of `k_flag_set` is not a multiple of 8** (mod 8 = 4) ⇒ it is the **only** kernel not self-consistent on 8-byte alignment. When handling this kernel on the Xe side its **segment length must be handled separately** (pad 4 B to 16, or relay it out according to Xe's actual alignment requirement) | §5.4(a) |
 | K4 | **`align = 8` must not be taken directly as Xe's kernarg alignment requirement** —— 8 is the value in **AMD `amdhsa` metadata**; the alignment requirement on the Xe side must be verified separately | needs external documentation, direction in K5 |
-| K5 | **needs external documentation**: ① the **alignment requirement of the kernel parameter (kernarg) segment on Xe** (whether a fixed alignment exists, and whether it is 8/16/32/64 bytes); ② the SYCL 2020 specification's rules on kernel parameter alignment; ③ the alignment clauses for kernel parameter layout in the Level Zero specification; ④ **whether the multiple 8-byte pointer parameters (`hidden_global_offset_x/y/z`) have additional address alignment requirements on Xe**; ⑤ whether the **packing rules for 2-byte parameters (`hidden_group_size_*`, etc.) on Xe** are the same as AMD's | direction in §9 G-40 |
+| K5 | **needs external documentation**: ① the **alignment requirement of the kernel parameter (kernarg) segment on Xe** (whether a fixed alignment exists, and whether it is 8/16/32/64 bytes); ② the SYCL 2020 specification's rules on kernel parameter alignment; ③ the alignment clauses for kernel parameter layout in the Level Zero specification; ④ **whether the multiple 8-byte pointer parameters (`hidden_global_offset_x/y/z`) have additional address alignment requirements on Xe**; ⑤ whether the **packing rules for 2-byte parameters (`hidden_group_size_*`, etc.) on Xe** are the same as AMD's | direction in §8 G-40 |
 | K6 | **the disposition of the 190 B tail and the 16 B hole on the Xe side requires first resolving their field attribution**, otherwise it cannot be judged whether they need Xe-side alignment —— this item **is unresolved within this workspace** | §8 U-5 |
 | K7 | **the concatenation rule of the 3 exception kernels differs from the 31 kernels** (no hidden parameters, no tail); the Xe side must **implement them separately** and **must not** apply the `+206` formula | §5.4(a) |
 | K8 | **`k_align_probe` has no `by_value` parameter** (its `Ph` parameter is a `global_buffer` pointer) —— when citing, the wording "**no `by_value` parameter**" must be used, and one **must not** write "its `by_value` size is 0" | §5.4(a) |
@@ -1154,7 +1154,7 @@ uint64   size             ← LE, payload byte count of that entry
 
 #### S0 Criteria Settled (External Documentation Verification)
 
-- **what to do**: verify item by item according to the list in §9; **what is produced is "conclusions", not "code"**;
+- **what to do**: verify item by item according to the list in §8; **what is produced is "conclusions", not "code"**;
 - **priorities (based on scope of impact)**:
 
 | Priority | Items to look up | Scope of impact |

@@ -62,6 +62,7 @@ desktop.ini
 # === 内部工作产物（不公开） ===
 # 内部的团队协作记录、台账、复核工具与输出不进入本仓库
 _team/
+_work/
 _verify_tools*/
 _sum_tools*/
 _xe_tools*/

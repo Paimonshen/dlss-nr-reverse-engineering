@@ -37,7 +37,7 @@ This is **not a "finished" study**. We pinned down everything that can be determ
 
 We built a 34-kernel × operator mapping table, but **the table's "XMX direct support" and "recommended path" columns are marked "needs external documentation" for 34/34 rows — we deliberately gave no capability conclusion**, because we have neither an Intel toolchain nor Xe hardware to verify.
 
-**If you are familiar with Intel Arc / oneAPI / Level Zero / SPIR-V**, please help confirm the specific items (highest priority: XMX primitive support and precision modes for matrix multiply/convolution; whether split-K reduction ordering is constrained by spec; Swin window/shift primitives; and the feasibility boundary of the generic SPIR-V path). The checklist is in [docs/05-Intel可行性评估.md](docs/05-Intel可行性评估.md), chapter 9.
+**If you are familiar with Intel Arc / oneAPI / Level Zero / SPIR-V**, please help confirm the specific items (highest priority: XMX primitive support and precision modes for matrix multiply/convolution; whether split-K reduction ordering is constrained by spec; Swin window/shift primitives; and the feasibility boundary of the generic SPIR-V path). The checklist is in [docs/05-Intel可行性评估.md](docs/05-Intel可行性评估.md), chapter 8.
 
 > **Project methodology**: anything we are not certain about is marked "needs external documentation" and **we never speculate**. Those blanks in the table are **deliberate, not omissions**.
 

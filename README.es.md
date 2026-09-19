@@ -37,7 +37,7 @@ Este **no es un estudio "terminado"**. Determinamos todo lo que se puede determi
 
 Construimos una tabla de correspondencia de 34 kernels × operadores, pero **las columnas "soporte directo de XMX" y "ruta recomendada" de la tabla están marcadas como "requiere documentación externa" en las 34/34 filas — deliberadamente no dimos ninguna conclusión sobre capacidades**, porque no tenemos ni cadena de herramientas de Intel ni hardware Xe para verificarlo.
 
-**Si conoces Intel Arc / oneAPI / Level Zero / SPIR-V**, ayúdanos a confirmar los puntos concretos (máxima prioridad: el soporte de primitivas XMX y los modos de precisión para multiplicación de matrices/convolución; si el orden de reducción de split-K está restringido por la especificación; las primitivas de ventana/desplazamiento de Swin; y la frontera de viabilidad de la ruta genérica de SPIR-V). La lista está en [docs/05-Intel可行性评估.md](docs/05-Intel可行性评估.md), capítulo 9.
+**Si conoces Intel Arc / oneAPI / Level Zero / SPIR-V**, ayúdanos a confirmar los puntos concretos (máxima prioridad: el soporte de primitivas XMX y los modos de precisión para multiplicación de matrices/convolución; si el orden de reducción de split-K está restringido por la especificación; las primitivas de ventana/desplazamiento de Swin; y la frontera de viabilidad de la ruta genérica de SPIR-V). La lista está en [docs/05-Intel可行性评估.md](docs/05-Intel可行性评估.md), capítulo 8.
 
 > **Metodología del proyecto**: todo aquello de lo que no estamos seguros se marca como "requiere documentación externa" y **nunca especulamos**. Esos espacios en blanco de la tabla son **deliberados, no omisiones**.
 
