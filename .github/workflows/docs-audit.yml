@@ -35,7 +35,8 @@ jobs:
 
       # The NVIDIA original binary must never be redistributed here, so its
       # filename must not appear in any file *except* the documents that state
-      # the prohibition. Keep that check separate and explicit.
+      # the prohibition, plus this workflow (which names it as a search
+      # pattern). Keep that exemption list explicit and minimal.
       - name: No NVIDIA binary filename outside the prohibition notices
         run: |
           set -eu
@@ -43,6 +44,7 @@ jobs:
           while IFS= read -r f; do
             case "$f" in
               CONTRIBUTING.md|EXTERNAL_BINARIES.md|LEGAL.md|.gitignore) continue ;;
+              .github/workflows/docs-audit.yml) continue ;;
             esac
             if grep -qF 'nvngx_dlssnr' "$f" 2>/dev/null; then
               echo "unexpected NVIDIA binary filename reference in: $f"
@@ -57,12 +59,13 @@ jobs:
           set -eu
           # Real leaked paths look like a drive letter followed by a separator and
           # a word, or a concrete /home/<name>/ or /Users/<name>/ prefix.
-          # `tools/` is excluded: the auditor and the parsers legitimately contain
-          # path-shaped *patterns* (regex literals) rather than real paths.
+          # `tools/` and this workflow are excluded: they legitimately contain
+          # path-shaped *patterns* (regex/CLI arguments) rather than real paths.
           bad=0
           while IFS= read -r f; do
             case "$f" in
               tools/*) continue ;;
+              .github/workflows/docs-audit.yml) continue ;;
             esac
             if grep -nE '[A-Za-z]:\\[A-Za-z]|/home/[a-z0-9_]+/|/Users/[A-Za-z0-9_]+/' "$f" \
                  | grep -vE 'example|Example|placeholder|your|\\<|\bnope\b' >/dev/null 2>&1; then
