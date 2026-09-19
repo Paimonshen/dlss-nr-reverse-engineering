@@ -114,7 +114,7 @@ python tools/byte_scanner.py <file> --hex "FF 25" --out out/hits.txt
 
 A general-purpose **read-only** documentation checker. It answers four questions:
 
-1. Do all in-page anchors (`](#heading)`) resolve, using **GitHub's heading-slug rules**?
+1. Do all in-page anchors (the `#fragment` form in a link target) resolve, using **GitHub's heading-slug rules**?
 2. Do all relative file links point at files that exist?
 3. Do any configured **leak patterns** appear (internal paths, internal file names, scratch names, …)?
 4. Do any configured **banned phrasing** patterns appear, with optional per-file exemptions?
