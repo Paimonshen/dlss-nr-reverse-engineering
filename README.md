@@ -1,92 +1,185 @@
-# DLSS NR 逆向工程研究（AMD 模块 → Intel Arc 可行性）
+# DLSS NR 逆向工程研究：AMD 模块 → Intel Arc (Xe/XMX) 可行性
 
-本仓库是对 **AMD 侧 DLSS NR 模块**（`dlssnr_amd_pass1.dll`）的**独立静态逆向工程研究**成果，目标是回答一个具体的互操作性问题：
-
-> **能否把 DLSS NR 从 AMD HIP（`amdgcn`）侧重编/移植到 Intel Arc（Xe / XMX）上运行？**
-
-研究结论、未解缺口与所需外部资料均在文档中如实记录，**不隐瞒限制**。
+> **一句话**：对 AMD 侧的 DLSS NR 模块做了一次彻底的静态逆向工程，产出完整的内核参数规格与移植可行性评估，并且**诚实地标出了自己走不通的地方** —— 现在需要社区帮我们把最后几个缺口补上。
 
 ---
 
-## 仓库内容
+## 🙏 求助社区：我们卡在三个具体的地方
 
-| 目录 | 内容 |
-|---|---|
-| [`docs/`](docs/) | 六份分析文档：项目背景、方法论、DLL 结构分析、34 内核参数规格、Intel 可行性评估、未解缺口与限制 |
-| [`tools/`](tools/) | 三个可复用的只读分析工具：PE 解析器、AMDGPU msgpack 元数据提取器、通用字节扫描器 |
-| [`team-methodology/`](team-methodology/) | 本研究所用的协作方法论：多智能体协作流程、质量门禁与验收链、已确立的定规 |
-| [`binaries/`](binaries/) | 第三方二进制（经 Git LFS 跟踪），用于复现分析；来源与许可见 [`EXTERNAL_BINARIES.md`](EXTERNAL_BINARIES.md) |
+这个项目**不是"已完成"的研究**。我们尽可能把能静态确定的东西都确定了（**34 个内核名、内核参数布局、权重容器格式、194 条导入面**都已闭合），但有**三个缺口**在原作者可用的条件下**无法闭合**，我们在这里明确求助：
+
+### 求助 1：`71 block → kernel` 的绑定关系（**最关键**）
+
+**我们要什么**：哪一层（`blockN.layerM`）调用 34 个内核中的哪一个。
+
+**为什么我们拿不到**（四条路全部封死，每条都有证据）：
+1. **DLL 静态分析已到边界** —— 调度函数体内与内核启动函数无交集；
+2. **工作区源码是空壳** —— 有一份再实现工程，但调度函数体只有 `return true;`，且它与该 DLL **不同构**（34 个内核名中只有 2 个重合）；
+3. **权重文件已穷尽** —— 我们用 **140 个字节模式**、覆盖**含载荷区的全文件**做了穷尽检索：`shape` / `dtype` / 算子类型 / `block` 索引 / `kernel` 名**全部 0 命中**，且索引区**逐字节归属：未归属 = 0**（无第二张表、无隐藏元数据区）；
+4. **运行期观测不可用** —— 我们没有 AMD 硬件。
+
+**如果你能提供**：① 上游网络定义文件（`.onnx` / `.safetensors` / 导出脚本）；② 上游 pass 侧源码；③ 或者你在 AMD 硬件上跑一次并 dump 出实际分派序列 —— 请开 Issue，这**直接决定移植路线能否落地**。
+
+### 求助 2：两个参数结构体的内部字段布局
+
+**`VarParams`（168 字节，5 个 `k_swin_var` 内核的用户参数结构）** 与 **`SwinParams`（40 字节，`k_swin_1h_32_fp8`）** 的内部字段构成未解。
+
+**已知**：DLL 元数据只声明 `by_value` 的**总字节数**（168 / 40），**不含字段名与字段边界**。我们读过一份再实现源码里的同名结构体（按 64 位指针计 **92 字节**），但它与 DLL 侧 **168 / 40 都对不上** —— 说明源码结构体**不能**当作 DLL 侧布局使用。
+
+**如果你能提供**：上游源码里的结构体定义、或 AMD 编译链的 `by_value` 结构体布局规则（含隐式填充）—— 请开 Issue。
+
+### 求助 3：Intel Xe / XMX 侧的能力确认（**51 条待查清单**）
+
+我们做了 34 内核 × 算子映射表，但**整张表的「XMX 是否直接支持」与「建议路径」两列，34/34 全部标注为「需查外部资料」—— 我们刻意没有给任何能力结论**，因为我们没有 Intel 工具链、也没有 Xe 硬件，无从验证。
+
+**如果你熟悉 Intel Arc / oneAPI / Level Zero / SPIR-V**，请帮我们确认清单里的具体条目（重点是最优先的 4 条：XMX 对矩阵乘/卷积的原语支持与精度模式、分 K 卷积的归约顺序是否被规范约束、Swin 窗口/移位类原语、以及通用 SPIR-V 路径的可行边界）。清单见 [`docs/05-Intel可行性评估.md`](docs/05-Intel可行性评估.md) 第 9 章。
+
+> **本项目的方法论要求**：凡无把握的一律标「需查外部资料」，**不得凭空推断**。所以表里那些空白是**故意的**，不是遗漏。
+
+---
+
+## 这个项目做了什么
+
+对 AMD 侧分发的 `dlssnr_amd_pass1.dll`（一个 `version.dll` 代理模块，内含 HIP `amdgcn` 设备代码）做了完整的静态分析，目标是回答：
+
+> **能否把 DLSS NR 从 AMD HIP 重编/移植到 Intel Arc（Xe / XMX）上运行？**
+
+### 主要成果（全部可复现）
+
+| 成果 | 内容 | 文档 |
+|---|---|---|
+| **模块形态** | 12 个节；17 个导出**全是 `version.dll` API 名**（各为 16 字节 `FF 25` 跳转桩）；导入面 **194 条 / 10 个 DLL**，其中 `amdhip64_7.dll` **29 条**为 HIP API | `docs/03` |
+| **设备代码** | `.hip_fat` 为 clang offload bundle，**9 个 bundle = 1 host 占位 + 8 个 device 目标**，全部 `amdgcn-amd-amdhsa`；每目标 **34 个内核** | `docs/03` |
+| **内核参数规格** | 34 个内核的 `kernarg_segment_size`、`by_value` 大小、完整 `.args` 表、资源字段；**3 个例外内核**（`k_flag_wait`=16 / `k_align_probe`=8 / `k_flag_set`=12） | `docs/04` |
+| **34/34 注册配对** | 两张 **8 字节步长**函数指针表 + **34 处注册调用与表槽位配对 34/34** ⇒ 「内核名 ↔ 包装函数 ↔ 槽位」静态闭合 | `docs/03` |
+| **权重容器已解出** | `8B 魔数 "DLSSNRW1"` + `uint32` 条目数(153) + `uint32` 索引区结束偏移(0x1629) + 153 条变长描述符 + 连续载荷(147,683,778 B)；**三条恒等式闭合到 0** | `docs/05` |
+| **Intel 可行性评估** | 内核分类 **A=7 / B=20 / C=7**；资源适配（最大 `group_segment_fixed_size` **64,640 B**，距 64 KiB 上限 **896 B**）；host 侧**需替换 29/194 = 14.9%**；**S0–S7 路线图 + 23 个里程碑** | `docs/05` |
+| **分析工具** | 三个通用只读工具：PE 解析器、AMDGPU msgpack 元数据提取器、字节扫描器 | `tools/` |
+| **协作方法论** | 多智能体协作流程、质量门禁与验收链、**24 条由真实事故得到的定规** | `team-methodology/` |
+
+### 已知的硬结论（含我们自己的错误更正）
+
+我们**保留了更正轨迹**，包括推翻自己先前的结论：
+
+- ✅ **34/34 注册配对是直接字节证据**（此前一度被写成"排除法推断"）；
+- ✅ **权重实测推翻源码常量**：真实层数是 **1×47 / 4×15（23–29、40–47）/ 5×9（30–38）**，与源码里的"瓶颈统一 4 层"不符（**不一致块 10 个 = 30–39**）；冲突时**以数据文件为准**；
+- ✅ **`descsz` 差值从 1,410 更正为 938**（原为算术错误）、去重后 **6 个取值**；
+- ✅ **「无上游源码」这一约束被推翻**：工作区**存在**一份 pass 侧源码（但与 DLL 不同构）；原判"不存在"是检索范围不足造成的**假否定**；
+- ✅ **`71 block` 的枚举上界未定**：该数字只出现在文档转述里，DLL 内无对应立即数。
+
+> 我们的方法论有一条硬规定：**凡"不存在 X"的断言，必须给出「搜索范围 + 匹配模式 + 命中数」**。所以你会在文档里看到大量"0 命中"的可复现记录 —— 这是刻意的。
+
+---
+
+## 仓库结构
+
+```
+.
+├── README.md                  本文件
+├── LEGAL.md                   法律声明（项目性质、权利主张、移除承诺）
+├── EXTERNAL_BINARIES.md       第三方二进制清单（来源 / 大小 / SHA256 / 许可 / 用途）
+├── LICENSE                    MIT（原创部分）+ 明确排除第三方二进制
+├── CONTRIBUTING.md            贡献指南（含证据要求）
+├── .gitattributes             Git LFS 配置
+├── .gitignore
+├── docs/
+│   ├── 01-项目背景.md            项目目标、分析对象、三项环境约束
+│   ├── 02-分析方法论.md          方法链与分析纪律
+│   ├── 03-DLL结构分析.md         模块形态、设备代码、两张指针表、注册机制
+│   ├── 04-内核参数规格.md        34 内核参数与资源字段全表
+│   ├── 05-Intel可行性评估.md     分类 / 资源 / 算子 / host 替换 / 权重 / 路线图 / 待查清单
+│   └── 06-未解缺口与限制.md      诚实声明：什么没做出来、为什么
+├── tools/
+│   ├── pe_parser.py          PE32/PE32+ 解析（含手工 .reloc、.pdata）
+│   ├── msgpack_extract.py    AMDGPU 内核元数据提取
+│   ├── byte_scanner.py       通用字节模式扫描 / 直方图 / 熵 / 字符串提取
+│   └── README.md
+├── team-methodology/
+│   ├── 01-多智能体协作流程.md
+│   ├── 02-质量门禁与验收链.md
+│   ├── 03-已确立的定规.md     24 条，每条都来自一次真实错误
+│   └── 04-禁用措辞检查的校准.md
+└── binaries/                 第三方二进制（Git LFS）
+    ├── dlssnr_amd_pass1.dll
+    ├── dlssnr_amd_pass2.dll
+    ├── dlssnr_amd_pass3.dll
+    ├── dlssnr_on_amd_weights.bin
+    └── OptiScaler/
+        └── OptiScaler.dll
+```
+
+> 注：`pass1/2/3` 三个 DLL **逐字节相同**（同一 SHA256），是发布包的真实结构，非三个处理阶段。
+
+---
 
 ## 快速开始
 
 ```bash
-git clone <this-repo>
-cd <this-repo>
+git clone https://github.com/Paimonshen/dlss-nr-reverse-engineering.git
+cd dlss-nr-reverse-engineering
 
-# 二进制用 Git LFS 跟踪，克隆后请确保拉取真实内容
+# 二进制由 Git LFS 跟踪，克隆后请拉取真实内容（约 186 MB）
 git lfs install
 git lfs pull
 ```
 
-### 复现分析（示例）
+### 依赖
 
 ```bash
-# 1) 查看 DLL 的节表、导出表、导入表、重定位与异常表
-python tools/pe_parser.py binaries/dlssnr_amd_pass1.dll --sections --exports --imports
-python tools/pe_parser.py binaries/dlssnr_amd_pass1.dll --reloc
-python tools/pe_parser.py binaries/dlssnr_amd_pass1.dll --pdata | head
-
-# 2) 提取 HIP fat binary 内的 AMDGPU 内核元数据（8 个 device 目标 × 34 内核）
-python tools/msgpack_extract.py binaries/dlssnr_amd_pass1.dll --json out/kernels.json
-
-# 3) 扫描字节模式 / 统计权重载荷的字节分布
-python tools/byte_scanner.py binaries/dlssnr_on_amd_weights.bin --hex "44 4C 53 53 4E 52 57 31"
-python tools/byte_scanner.py binaries/dlssnr_on_amd_weights.bin --byte-histogram --range 0x1629:end
+pip install pefile msgpack    # Python 3.11+
 ```
 
-三个工具均为**只读**：除显式指定的输出路径外不写入任何文件。依赖 `pefile`、`msgpack`，Python 3.11+。详见 [`tools/README.md`](tools/README.md)。
+### 复现主要结论
 
-## 主要发现（摘要）
+```bash
+# ① 模块形态：12 节 / 17 个 version.dll 导出 / 194 条导入（10 个 DLL）
+python tools/pe_parser.py info binaries/dlssnr_amd_pass1.dll --limit 0
 
-### 模块形态
-- `dlssnr_amd_pass1.dll` 是一个 **`version.dll` 代理**：17 个导出**全部是 `version.dll` 的 API 名**，每个是一段 16 字节 `FF 25` 跳转桩。
-- 导入面共 **194 条 / 10 个 DLL**，其中 `amdhip64_7.dll` **29 条**为 HIP API；其余为系统与图形侧。
-- 文件 **7,156,224 字节**，PE32+，12 个节。
+# ② 重定位：19 个块、2044 条目（DIR64 2040 + ABSOLUTE 4）
+python tools/pe_parser.py reloc binaries/dlssnr_amd_pass1.dll
 
-### 设备代码
-- `.hip_fat` 内为 clang offload bundle（魔数 `__CLANG_OFFLOAD_BUNDLE__`），含 **9 个 bundle = 1 个 host 占位 + 8 个 device 目标**，**全部为 `amdgcn-amd-amdhsa`**。
-- 每个 device 目标含 **34 个内核**；内核元数据（kernarg 布局、资源字段）可完整解析。
-- 8 个目标间 **16 个资源字段中有 8 个不一致**；`wavefront_size` 在目标 #1–#7 为 32、在 #8 为 64。
+# ③ 异常表：1167 条目
+python tools/pe_parser.py pdata binaries/dlssnr_amd_pass1.dll --pdata-limit 0
 
-### 内核与分派
-- **34 个内核名可静态恢复**，来自 kernel 注册调用的实参。
-- 两张 **8 字节步长**的函数指针表（位于 `.rdata`），**注册调用与表槽位的配对为 34/34**，可回溯到「内核名 ↔ 包装函数 ↔ 表槽位」。
-- **`71 block` 的枚举上界未定**：该数字仅见于文档转述；`block` 重编号逻辑有 4 处内联副本，均位于调度函数之外；**逐 block → kernel 的分派未见实现**。
+# ④ 8 个设备目标 × 34 个内核，各内核的 kernarg 大小与 by_value 参数
+python tools/msgpack_extract.py binaries/dlssnr_amd_pass1.dll --json out/kernels.json
 
-### 权重容器
-- `dlssnr_on_amd_weights.bin`（147,689,451 字节）容器**已完整解析**：
-  `8B 魔数 "DLSSNRW1"` + `uint32` 条目数(153) + `uint32` 索引区结束偏移(0x1629) + 153 条变长描述符 `(uint8 nameLen, name, uint64 offset, uint64 size)` + 连续载荷区(147,683,778 字节)。
-- 三条恒等式闭合到 0。**容器内不含 `shape` / `dtype` / 算子类型 / `block` 索引 / `kernel` 名五类字段**，且**无第二张表 / 无隐藏元数据区**（索引区逐字节归属：未归属 = 0）。
+# ⑤ 权重容器魔数（命中 1）与载荷字节分布（熵 5.902444 bits/byte）
+python tools/byte_scanner.py binaries/dlssnr_on_amd_weights.bin --hex "44 4C 53 53 4E 52 57 31"
+python tools/byte_scanner.py binaries/dlssnr_on_amd_weights.bin --byte-histogram --range 0x1629:
+```
 
-### Intel Xe 可行性
-- 34 内核分类：**A 类 7 / B 类 20 / C 类 7**（阈值为此研究自设，非规范值）。
-- 资源面最大 `group_segment_fixed_size` = **64,640 字节**，距 64 KiB 上限 **896 字节**。
-- host 侧 **需替换 29 / 194 = 14.9%**（全部为 `amdhip64_7.dll`）。
-- 路线图 **S0–S7 八阶段 + 23 个里程碑**。
+三个工具均为**只读**（除显式 `--out` / `--json` / `--hex-out` 外不写入）。详见 [`tools/README.md`](tools/README.md)。
 
-## 未解缺口（诚实声明）
+---
 
-- **「层 → kernel 绑定」不可取得**：四条路径全部封死 —— ① DLL 静态分析已到边界；② 工作区内源码为空壳且与 DLL 不同构；③ 权重文件已穷尽（无相关字段、无第二张表）；④ **运行期观测不可用**（本环境无 AMD 硬件）。
-- **`VarParams`（168 字节）内部布局** 与 **`SwinParams`（40 字节 `by_value`）内部构成** 未解。
-- `71` 的上界与 `block` 重编号的语义边界未定。
-- 涉及 Intel Xe / SPIR-V / XMX 的具体能力问题，文档中**一律标注为「需查外部资料」**，未作推断。
+## 分析与实验环境的三项限制（请读者注意）
 
-详见 [`docs/06-未解缺口与限制.md`](docs/06-未解缺口与限制.md)。
+本项目的所有结论都受以下三项限制，文档中已逐处标注：
+
+1. **无 AMD 硬件** ⇒ 无法做运行期观测（这是三个缺口中最关键的一环）；
+2. **无 AMDGPU 反汇编器**（`llvm-objdump` 不可用）⇒ 设备侧反汇编未做，`swin_layer` 等符号的调用关系未取证；
+3. **无 Intel 工具链 / Xe 硬件** ⇒ 一切涉及 Xe / SPIR-V / XMX 具体能力的问题**一律标注为「需查外部资料」，不作结论**。
+
+**因此本项目的结论层级是「静态字节层面」**：能给出的都给了字节证据；不能给的都标了"未解"并要求外部资料。
+
+---
+
+## 如何参与
+
+- **补上三个缺口**（见开头「求助社区」）—— 最有价值的贡献；
+- **修正结论**：若你发现文档中的结论与字节证据不符，请附**文件 + 偏移 + 原始字节 + 复现命令**；
+- **补充外部资料**：为「需查外部资料」的条目提供规范层面的出处；
+- **改进工具或文档**。
+
+详见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。本项目对证据的要求较高（全称否定必须给范围+模式+命中数），但**结论正确而证据不足的 PR 只会被要求补充证据，不会被直接拒绝**。
 
 ## 法律与许可
 
-- 第三方二进制的来源、许可与用途见 [`EXTERNAL_BINARIES.md`](EXTERNAL_BINARIES.md)。
-- 项目性质、权利主张、移除承诺见 [`LEGAL.md`](LEGAL.md)。
-- 原创内容（文档、脚本）的许可证**待所有者选定**，见 [`LICENSE`](LICENSE)。
+- **原创部分**（文档、脚本）采用 **MIT 许可**，见 [`LICENSE`](LICENSE)；
+- **第三方二进制**（`binaries/` 下）**不在该许可范围内**，版权归各自所有者，来源与 SHA256 见 [`EXTERNAL_BINARIES.md`](EXTERNAL_BINARIES.md)；
+- 本项目为**互操作性研究**，不包含任何规避 DRM 的代码，也不包含 NVIDIA 任何受版权保护的二进制；若版权方要求移除，将立即配合 —— 见 [`LEGAL.md`](LEGAL.md)。
 
-**本仓库为互操作性研究，不包含任何规避 DRM 的代码，也不包含 NVIDIA 的任何受版权保护的二进制。**
+## 免责声明
+
+本项目为独立的静态研究成果，**按"现状"提供，不附带任何明示或默示担保**。使用者**自行承担**因使用本仓库内容而产生的一切风险与法律后果。

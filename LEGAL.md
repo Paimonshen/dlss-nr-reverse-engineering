@@ -34,4 +34,6 @@
 
 ## 9. 许可
 
-本仓库原创内容（文档、脚本）的许可证**待所有者选定**，见 [`LICENSE`](LICENSE)。在此之前，除本声明所述的查看与引用外，不授予任何额外权利。
+本仓库**原创内容**（`docs/`、`team-methodology/`、`tools/` 及根级文本文件）采用 **MIT 许可**，完整文本见 [`LICENSE`](LICENSE)。
+
+**该许可不覆盖 `binaries/` 下的第三方二进制** —— 它们由各自所有者授权，本仓库不对其授予任何权利。详见 [`EXTERNAL_BINARIES.md`](EXTERNAL_BINARIES.md)。
