@@ -4,6 +4,8 @@
 
 This document records **externally-sourced findings** that answer four items of the external-documentation checklist in [`05-Intel-Feasibility-Assessment.md`](05-Intel-Feasibility-Assessment.md) §8.1 — the four **roadmap determination premises G-01 … G-04**.
 
+**Target hardware, stated once so it is never ambiguous.** The device this project is assessing is the **Intel Arc B580**, which is **Xe2 / Battlemage** generation with **XMX engines**. Wherever this document says "Xe" without qualification it means *this part*; a generation table appears only because the vendor documents datatypes **per generation** and the requirement must be read off the **correct row** — the **B580's** row.
+
 Four statements govern everything below.
 
 1. **Every finding carries a citation.** Sources are given as markdown links, and primary sources (merged commits, vendor documentation, project documentation) are preferred over secondary ones.
@@ -12,6 +14,8 @@ Four statements govern everything below.
 4. **This document does not change any measurement in `docs/04` or `docs/05`.** No byte-level number, kernel classification, resource count or parameter table is revised here. It only supplies external answers to questions that were previously open.
 
 **Citation convention used below.** "Primary" means the source is the artefact itself (the merged change, the vendor's own documentation, the project's own documentation). "Reported" means the claim rests on a secondary or community report and has not been traced to a primary artefact.
+
+**A caution this document records against itself.** Several Intel documentation pages are **JavaScript-rendered** and return only navigation chrome to a plain fetch, one vendor blog returned **HTTP 403**, and the Intel compiler repository (`DPAS.md`) is **unreachable from this environment**. Where a quotation could not be re-read directly, the citation says so and the finding is downgraded accordingly. **The sources that *were* read directly are the ones carrying "confirmed" labels.**
 
 ---
 
@@ -29,18 +33,27 @@ Four statements govern everything below.
 
 The XMX execution unit's instruction-level primitive is **DPAS (Dot Product Accumulate Systolic)**: a systolic-array dot-product-accumulate with the semantics `D = C + A×B`. **XMX does not expose a direct "convolution" instruction.** Convolution and matrix-multiply acceleration at the library level happens by **mapping** those operations onto DPAS — for example through oneDNN, whose Intel-GPU convolution and matmul implementations are built on the same DPAS primitive. The mapping layer is part of the finding, not an implementation detail: an operator is accelerated only once something has expressed it as a matrix multiply.
 
-**Precision support, by generation:**
+**Precision support — stated for the target hardware, not as an abstract generation table.**
 
-| Generation | XMX data types | Status |
+> **The target hardware is the Intel Arc B580** (Xe2 / Battlemage). Every precision question below is therefore asked about **this GPU**, not about "Xe in general". A generation table is given only because the vendor documents datatypes **per generation**, and reading the requirement off the wrong row is exactly the mistake this framing prevents.
+
+| Generation | XMX data types | Status for us |
 |---|---|---|
-| **Xe-HPG** (Arc A-series) | **FP16 / BF16 / INT8 / INT4 / INT2** — **no TF32** | **confirmed** from the vendor's own per-product datatype table |
-| **Xe2** (Battlemage) | **FP16 / BF16 / INT8 / INT4 / INT2**, with **TF32 added** | **reported, not independently confirmed** — see the residual gap below |
+| **Xe-HPG** (Arc A-series, Alchemist) | **FP16 / BF16 / INT8 / INT4 / INT2** — **no TF32** | **confirmed** (vendor per-product datatype table) — *not our hardware, listed for contrast* |
+| **Xe2** (Battlemage) — **this includes the Arc B580** | **FP16 / BF16 / INT8 / INT4 / INT2**, with **TF32 added** | **reported, not independently confirmed** — see the residual gap below |
 
-Support is **generation-dependent**. The vendor's optimization guide states that XMX "supports numerous data types, **depending on hardware generation**, such as int8, fp16, bf16, and tf32"; the vendor's own per-product datatype table for **Xe-HPG (Arc A-Series)** lists **FP16 / BF16 / INT8 / INT4 / INT2 and no TF32**. Read together, the consistent reading is that **TF32 is not an Xe-HPG capability** and its XMX support is a **later-generation** addition — but the two statements are not a single per-generation table, so the Xe2 side remains **reported**.
+**What this means concretely for a B580 port.** The **confirmed** B580 statement is narrower than the full TF32 question:
+
+- **Confirmed for the B580:** it is an **Xe2 / Battlemage** part with **XMX engines**; and the vendor's AI-datatypes article lists **Intel Arc B-Series Graphics in its product set** alongside the Xe-HPG row.
+- **Not confirmed for the B580:** that **TF32 is available on this specific part**. The evidence for "TF32 added on Xe2" is a documentation sentence listing TF32 as a type supported **"depending on hardware generation"** (without naming which generation) plus a vendor **blog** post. **Neither is a B580-specific datatype statement.**
+
+> **Practical consequence — plan the B580 port on the confirmed set.** **FP16 / BF16 / INT8 / INT4 / INT2** are the datatypes this project treats as **available on the B580**. Any TF32-based path must be treated as a **possible optimisation to verify on the actual device** (via a device capability query or a `joint_matrix`/oneAPI datatype test), **not as a porting assumption**. This changes nothing about the confirmed DPAS/mapping-layer findings above, all of which hold regardless of TF32.
+
+Support is **generation-dependent**. The vendor's optimization guide states that XMX "supports numerous data types, **depending on hardware generation**, such as int8, fp16, bf16, and tf32"; the vendor's own per-product datatype table for **Xe-HPG (Arc A-Series)** lists **FP16 / BF16 / INT8 / INT4 / INT2 and no TF32**. Read together, the consistent reading is that **TF32 is not an Xe-HPG capability** and that its XMX support is a **later-generation** addition which would therefore include the B580 — but the two statements do not constitute a **B580-specific** datatype declaration, so the B580/TF32 row remains **reported**.
 
 > **TF32 numeric note (reported).** TF32 uses the **same 8-bit exponent as FP32** with a reduced mantissa, which is why it is attractive as a higher-throughput path for FP32-shaped workloads. **This is recorded as a reported statement; it was not measured here.**
 
-**Separate, independently-sourced fact — FP32 GEMM is commonly approximated on XMX.** The vendor's optimization guide documents oneMKL algorithms named **`bf16x2`** and **`bf16x3`** that accelerate **single-precision** `gemm`/`gemm_batch` on XMX by **converting FP32 inputs to BF16** and multiplying on the systolic array, trading accuracy for throughput in several variants. This matters for porting: an FP32-shaped kernel has a **library-supported approximate path** on XMX even where a native FP32 XMX datatype does not exist.
+**Separate, independently-sourced fact — FP32 GEMM is commonly approximated on XMX.** The vendor's optimization guide documents oneMKL algorithms named **`bf16x2`** and **`bf16x3`** that accelerate **single-precision** `gemm`/`gemm_batch` on XMX by **converting FP32 inputs to BF16** and multiplying on the systolic array, trading accuracy for throughput in several variants. **This is useful on the B580 precisely because it does not depend on the TF32 question**: an FP32-shaped kernel has a **library-supported approximate path** on XMX even if TF32 turns out to be unavailable on the part.
 
 **Operational consequence — XMX acceleration is not automatic.** Two conditions must both hold before DPAS is reached:
 
@@ -75,9 +88,9 @@ A scalar loop does not become DPAS merely by being compiled for Xe. There is no 
 
 **Residual gap — still needs verification.** The following must not be read as settled by this record:
 
-1. **The Xe2 / TF32 row has no single authoritative per-generation table behind it.** The Xe-HPG row is confirmed from the vendor's product-family datatype table. The TF32 statements rest on (a) a documentation sentence that lists TF32 only as a type supported **"depending on hardware generation"** without naming which, and (b) a vendor **blog** post — *not* specification-grade evidence — that lists TF32 among DPAS datatypes. **The vendor's technical compiler documentation (`DPAS.md`) is the source that would settle it**, and it could not be retrieved from this environment. Until then the row stays **reported**.
-2. **The "TF32 throughput is about half of BF16/FP16" remark is not confirmed.** No source read for this record states that ratio. It is marked **Low** confidence and should be treated as a lead, not a figure. The *direction* — that FP32-shaped GEMM is commonly run via BF16 decompositions (`bf16x2` / `bf16x3`) rather than a native FP32 path — **is** documented and is recorded above.
-3. **The Xe-HPG datatype article is scoped to Windows 10 / 11 and to a product-family matrix**, not to a driver-independent architecture statement. Its row is quoted as the vendor's own support statement for that product family, and no claim is made here that it is exhaustive for the architecture.
+1. **There is no B580-specific datatype declaration behind the TF32 row.** The datatype statements available are: (a) a per-**product-family** table that covers **Xe-HPG (Arc A-Series)** and **lists Arc B-Series in its product set** without giving a B-Series datatype row; (b) a documentation sentence listing TF32 only as a type supported **"depending on hardware generation"**, without naming the generation; (c) a vendor **blog** post — *not* specification-grade evidence — listing TF32 among DPAS datatypes. **None of these is a statement that "the Arc B580 supports TF32 in XMX".** The source that would settle it is the vendor's **compiler-level `DPAS` instruction documentation** (`intel-graphics-compiler/documentation/visa/instructions/DPAS.md`), which **could not be retrieved from this environment**. **Porting decision that follows: do not assume TF32 on the B580** — verify it on the device (capability query, or a `joint_matrix` datatype test) before relying on it. The **confirmed** B580 datatype set is **FP16 / BF16 / INT8 / INT4 / INT2**.
+2. **The "TF32 throughput is about half of BF16/FP16" remark is not confirmed.** No source read for this record states that ratio. It is marked **Low** confidence and should be treated as a lead, not a figure. The *direction* — that FP32-shaped GEMM is commonly run via BF16 decompositions (`bf16x2` / `bf16x3`) rather than a native FP32 path — **is** documented and is recorded above; **that path is B580-relevant independent of TF32**.
+3. **The datatype article is scoped to Windows 10 / 11 and to a product-family matrix**, not to a driver-independent architecture statement. Its row is quoted as the vendor's own support statement, and no claim is made here that it is exhaustive.
 4. **Several quoted bodies could not be re-read from this environment** (JavaScript-rendered documentation pages, an HTTP 403 blog, an unreachable code host). They are recorded as **supplied**, with that limitation stated at each citation, rather than presented as independently verified.
 
 ---
