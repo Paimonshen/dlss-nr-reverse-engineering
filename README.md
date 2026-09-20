@@ -9,6 +9,20 @@
 
 ---
 
+## At a glance
+
+| | |
+|---|---|
+| **Subject** | `dlssnr_amd_pass1.dll` — an AMD-side `version.dll` proxy module carrying HIP `amdgcn` device code. 7,156,224 B, SHA256 `3C9CA13F…2BC1DD8`. The three `pass1/2/3` files are **byte-identical** (release-package reality, not three stages). |
+| **What is done** | Full static analysis: **12 sections**, **17 exports**, **194 imports / 10 DLLs**, **8 device targets × 34 kernels (272 entries)**, complete kernel-parameter spec, the **weight container decoded** (153 entries + 147,683,778 B payload), and **34/34** kernel-registration pairing closed by direct byte evidence. |
+| **Porting target** | **Intel GPUs with XMX engines** — Xe-HPG (**Arc A-series**) and Xe2 (**Arc B-series**) and later. **Intel Arc B580 is the development/verification machine**, not the sole target. |
+| **Evidence level** | **Static byte level.** No AMD hardware ⇒ no runtime observation; no AMDGPU disassembler; no Intel toolchain. Every claim carries file/RVA/bytes or a citation. |
+| **Status** | Analysis **complete**; **source recovery is the next stage** (see [project goals](#where-this-is-going-project-goals)). **Three gaps remain open** — see [Help Wanted](#help-wanted-three-specific-gaps-we-could-not-close). |
+| **Quality gate** | CI on every push: anchor/link/pattern audit, NVIDIA-binary and absolute-path guards, tools smoke test, and **published-hash verification**. |
+| **Start here** | [docs/README.md](docs/README.md) — the document index. Analysis docs are in **English and Chinese**; methodology is Chinese. |
+
+---
+
 ## 🎯 Where This Is Going (project goals)
 
 This repository began as a static analysis — but the analysis was only ever **a means to an end**. The goal we are now working toward, in order:

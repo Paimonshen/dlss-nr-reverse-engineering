@@ -9,6 +9,20 @@
 
 ---
 
+## De un vistazo
+
+| | |
+|---|---|
+| **Objeto** | `dlssnr_amd_pass1.dll` —— un módulo proxy `version.dll` del lado AMD que contiene código de dispositivo HIP `amdgcn`. 7.156.224 B, SHA256 `3C9CA13F…2BC1DD8`. Los tres archivos `pass1/2/3` son **idénticos byte a byte** (realidad del paquete de publicación, no tres etapas). |
+| **Lo que está hecho** | Análisis estático completo: **12 secciones**, **17 exportaciones**, **194 importaciones / 10 DLL**, **8 objetivos de dispositivo × 34 kernels (272 entradas)**, la especificación completa de parámetros de kernel, el **contenedor de pesos descifrado** (153 entradas + 147.683.778 B de carga útil) y el emparejamiento **34/34** de registros de kernel (cerrado con evidencia directa en bytes). |
+| **Objetivo de portabilidad** | **Todas las GPU Intel con motores XMX** —— Xe-HPG (**serie Arc A**) y Xe2 (**serie Arc B**) y posteriores. **Intel Arc B580 es la máquina de desarrollo y verificación**, no el único objetivo. |
+| **Nivel de evidencia** | **Nivel de bytes estático.** Sin hardware AMD ⇒ sin observación en tiempo de ejecución; sin desensamblador AMDGPU; sin cadena de herramientas Intel. Toda afirmación lleva archivo/RVA/bytes o una cita. |
+| **Estado** | Análisis **completo**; **la recuperación del código fuente es la siguiente etapa** (véanse los [objetivos del proyecto](#hacia-dónde-va-esto-objetivos-del-proyecto)). **Quedan tres brechas abiertas** —— véase [Se busca ayuda](#se-busca-ayuda-tres-huecos-concretos-que-no-pudimos-cerrar). |
+| **Puerta de calidad** | CI en cada push: auditoría de anclas/enlaces/patrones, guardas de binarios NVIDIA y rutas absolutas, prueba de humo de las herramientas y **verificación de los hashes publicados**. |
+| **Empieza aquí** | [docs/README.md](docs/README.md) —— el índice de documentos. Los documentos de análisis están en **inglés y chino**; la metodología está en chino. |
+
+---
+
 ## 🎯 Hacia dónde va esto (objetivos del proyecto)
 
 Este repositorio comenzó como un análisis estático, pero el análisis siempre fue solo **un medio para un fin**. El objetivo hacia el que trabajamos ahora, en orden:
@@ -81,7 +95,9 @@ Construimos una tabla de correspondencia de 34 kernels × operadores, pero **las
 
 Un análisis estático completo de `dlssnr_amd_pass1.dll` del lado AMD (un módulo proxy `version.dll` que contiene código de dispositivo HIP `amdgcn`), para responder a:
 
-> **¿Se puede recompilar/portar DLSS NR de AMD HIP a Intel Arc (Xe / XMX)?**
+> **¿Se puede recompilar/portar DLSS NR de AMD HIP a las GPU Intel con motores XMX (Xe-HPG / Xe2 y posteriores)?**
+
+El objetivo es **la familia Intel equipada con XMX**, no una sola tarjeta. **Intel Arc B580 (Xe2 / Battlemage) es la máquina de desarrollo y verificación** — la única pieza disponible aquí, y por tanto la única contra la que realmente se puede compilar y probar. Cuando una capacidad varía según la generación, la **línea base portátil es el conjunto soportado por todas las generaciones objetivo**; todo lo que vaya más allá es una **ruta opcional tras la detección en tiempo de ejecución**. Consúltese [`docs/07`](docs/07-External-Evidence-Xe-Capabilities.md) para los datos generacionales con fuentes.
 
 ### Resultados principales (todos reproducibles)
 

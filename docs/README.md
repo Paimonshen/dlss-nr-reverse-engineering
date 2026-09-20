@@ -1,6 +1,6 @@
 # Analysis documents
 
-This directory holds the analysis produced by the study. **Both language versions are kept side by side** — the English files are translations of the Chinese originals.
+This directory holds the analysis produced by the study. **Every analysis document is kept in both English and Chinese**, side by side.
 
 | # | English | 中文 | Content |
 |---|---|---|---|
@@ -10,9 +10,9 @@ This directory holds the analysis produced by the study. **Both language version
 | 04 | [Kernel Parameter Spec](04-Kernel-Parameter-Spec.md) | [内核参数规格](04-内核参数规格.md) | Full parameter and resource tables for all 34 kernels |
 | 05 | [Intel Feasibility Assessment](05-Intel-Feasibility-Assessment.md) | [Intel可行性评估](05-Intel可行性评估.md) | Classification, resource adaptation, operator mapping, host replacement, weight container, roadmap, external-documentation checklist |
 | 06 | [Open Gaps and Limits](06-Open-Gaps-and-Limits.md) | [未解缺口与限制](06-未解缺口与限制.md) | What could not be produced, and why |
-| 07 | [External Evidence — Xe Capabilities](07-External-Evidence-Xe-Capabilities.md) | — (English only) | **Externally-sourced answers** to the four highest-priority checklist items (G-01 … G-04), with citations and explicit "still needs verification" markers |
+| 07 | [External Evidence — Xe Capabilities](07-External-Evidence-Xe-Capabilities.md) | [外部证据 — Xe 能力](07-外部证据-Xe能力.md) | **Externally-sourced answers** to the four highest-priority checklist items (G-01 … G-04), with citations and explicit "still needs verification" markers |
 
-> **Which is authoritative?** The **Chinese** originals of 01–06 are the analysis of record — they were written directly against the byte evidence. The English files are faithful translations. If a discrepancy is ever found, the Chinese original wins and the English file should be corrected. Document **07 was written in English only** and has no Chinese counterpart.
+> **Which is authoritative?** The **Chinese** versions of 01–06 are the analysis of record — they were written directly against the byte evidence; the English files are faithful translations. If a discrepancy is found, the Chinese original wins and the English file should be corrected. **Document 07 is the opposite case**: it was written first in English and the Chinese file is the translation, so **for 07 the English version is authoritative**.
 
 > **Evidence class matters — do not mix the two.**
 > Documents **01–06** contain this project's **own measurements** (static byte level).
@@ -22,7 +22,7 @@ This directory holds the analysis produced by the study. **Both language version
 ## Reading order
 
 1. **New here?** Start with [01-Project Background](01-Project-Background.md), then the [main README](../README.md).
-2. **Evaluating the porting idea?** [05-Intel Feasibility Assessment](05-Intel-Feasibility-Assessment.md) is the substantive document; its chapter 9 is the external-documentation checklist.
+2. **Evaluating the porting idea?** [05-Intel Feasibility Assessment](05-Intel-Feasibility-Assessment.md) is the substantive document; its **chapter 8** holds the external-documentation checklist, and [07](07-External-Evidence-Xe-Capabilities.md) supplies sourced answers to its four highest-priority items.
 3. **Want to understand or reproduce the method?** [02-Analysis Methodology](02-Analysis-Methodology.md) plus the tools in [`../tools/`](../tools/README.md).
 4. **Want to know what is *not* solved?** [06-Open Gaps and Limits](06-Open-Gaps-and-Limits.md). Please read this before assuming a number is final.
 
